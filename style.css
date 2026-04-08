@@ -266,28 +266,28 @@ h2 {
     display: none;
 }
 
-#shop-scroll {
+#shop-scroll, #ranking-list {
     scrollbar-width: thin;
     scrollbar-color: #f4d03f #4a2e15;
 }
 
-#shop-scroll::-webkit-scrollbar {
+#shop-scroll::-webkit-scrollbar, #ranking-list::-webkit-scrollbar {
     width: 14px;
 }
 
-#shop-scroll::-webkit-scrollbar-track {
+#shop-scroll::-webkit-scrollbar-track, #ranking-list::-webkit-scrollbar-track {
     background: #4a2e15;
     border: 3px solid #3e2723;
     border-radius: 4px;
 }
 
-#shop-scroll::-webkit-scrollbar-thumb {
+#shop-scroll::-webkit-scrollbar-thumb, #ranking-list::-webkit-scrollbar-thumb {
     background: #f4d03f;
     border: 3px solid #d35400;
     border-radius: 4px;
 }
 
-#shop-scroll::-webkit-scrollbar-thumb:hover {
+#shop-scroll::-webkit-scrollbar-thumb:hover, #ranking-list::-webkit-scrollbar-thumb:hover {
     background: #f1c40f;
 }
 
@@ -403,10 +403,30 @@ h2 {
     }
     #shop h2 {
         font-size: 12px;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
         padding-bottom: 5px;
     }
-    .shop-btn { margin-bottom: 2px; padding: 2px 5px; }
+    .shop-btn { 
+        margin-bottom: 8px; 
+        padding: 6px 8px; 
+    }
+    
+    #mute-btn, #pause-btn, #toggle-info-btn {
+        width: 18px !important;
+        height: 18px !important;
+        font-size: 8px !important;
+        padding: 2px !important;
+        border-width: 2px !important;
+    }
+    #pause-btn {
+        left: 22px !important;
+    }
+    #steam-btn {
+        font-size: 8px !important;
+        padding: 6px !important;
+        margin-top: 5px !important;
+        line-height: 1.2 !important;
+    }
 }
 
 /* RETIRE BUTTON PULSE */
