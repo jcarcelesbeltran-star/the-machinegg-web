@@ -7,7 +7,7 @@
     <title>The MachinEGG</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <!-- <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script> -->
+    <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 
 <body>
@@ -37,7 +37,6 @@
         <main>
             <div id="farm-area" style="position: relative;">
                 <canvas id="gameCanvas" width="800" height="650"></canvas>
-                <a id="rate-link" href="https://quantumgames-studio.itch.io/the-machinegg/rate?source=game" target="_blank" style="display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, 250px); background: #e91e63; color: white; padding: 12px 24px; font-family: 'Press Start 2P', monospace; font-size: 14px; text-decoration: none; border: 4px solid #fff; border-radius: 8px; box-shadow: 0 4px 0 #88113a; z-index: 1000; transition: transform 0.1s, box-shadow 0.1s;" onmouseover="this.style.transform='translate(-50%, 252px)'; this.style.boxShadow='0 2px 0 #88113a';" onmouseout="this.style.transform='translate(-50%, 250px)'; this.style.boxShadow='0 4px 0 #88113a';">RATE THE GAME!</a>
             </div>
 
             <aside id="shop">
@@ -174,7 +173,7 @@
     </div>
     <div id="pause-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
         <h1 style="color: white; font-family: 'Press Start 2P', monospace; font-size: 32px; text-shadow: 2px 2px 0 #333; margin-bottom: 30px;">PAUSE</h1>
-        <button id="resume-btn" class="pixel-btn" style="font-size: 16px; padding: 15px 30px; background: #2ecc71; color: white; cursor: pointer; border: 4px solid #fff; box-shadow: 0 4px 0 #27ae60; font-family: 'Press Start 2P', monospace;">RENAUDAR</button>
+        <button id="resume-btn" class="pixel-btn" style="font-size: 16px; padding: 15px 30px; background: #2ecc71; color: white; cursor: pointer; border: 4px solid #fff; box-shadow: 0 4px 0 #27ae60; font-family: 'Press Start 2P', monospace;">RESUME</button>
     </div>
     
     <!-- RANKING OVERLAY -->
@@ -227,6 +226,46 @@
     </div>
 
     <script src="script.js"></script>
-</body>
 
+    <!-- SCROLL Y AUTOESCALADO -->
+    <script>
+        function performDesktopAutoScale() {
+            let container = document.getElementById('game-container');
+            if (!container) return;
+
+            // Si entramos en los límites puros del modo móvil/táctil de CSS que destroza el layout principal, dejamos que el CSS tome el volante
+            if (window.matchMedia("(max-width: 950px)").matches || window.matchMedia("(max-height: 600px)").matches) {
+                container.style.position = 'relative';
+                container.style.top = 'auto';
+                container.style.left = 'auto';
+                container.style.transform = 'none';
+                document.body.style.overflow = 'auto'; 
+                document.body.style.padding = ''; // Restaurar padding de CSS
+                return;
+            }
+
+            // Exprimir al máximo la pantalla sin dejar "aire" forzado por el padding del body
+            document.body.style.padding = '0px'; 
+            document.body.style.margin = '0px';
+
+            // Medir las dimensiones puras virtuales de la caja
+            let targetWidth = 1200; // Ancho fijo por CSS
+            // Su altura natural ronda los 800-840. Obligamos a que el escalado llegue hasta los mismísimos bordes del navegador.
+            let targetHeight = container.offsetHeight > 100 ? container.offsetHeight : 820; 
+            
+            let scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight);
+            
+            container.style.position = 'absolute';
+            container.style.top = '50%';
+            container.style.left = '50%';
+            container.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            container.style.transformOrigin = 'center center';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        window.addEventListener('resize', performDesktopAutoScale);
+        window.addEventListener('load', performDesktopAutoScale);
+        performDesktopAutoScale();
+    </script>
+</body>
 </html>

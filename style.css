@@ -266,28 +266,28 @@ h2 {
     display: none;
 }
 
-#shop-scroll, #ranking-list {
+#shop-scroll, #ranking-list, html, body {
     scrollbar-width: thin;
     scrollbar-color: #f4d03f #4a2e15;
 }
 
-#shop-scroll::-webkit-scrollbar, #ranking-list::-webkit-scrollbar {
+#shop-scroll::-webkit-scrollbar, #ranking-list::-webkit-scrollbar, html::-webkit-scrollbar, body::-webkit-scrollbar {
     width: 14px;
 }
 
-#shop-scroll::-webkit-scrollbar-track, #ranking-list::-webkit-scrollbar-track {
+#shop-scroll::-webkit-scrollbar-track, #ranking-list::-webkit-scrollbar-track, html::-webkit-scrollbar-track, body::-webkit-scrollbar-track {
     background: #4a2e15;
     border: 3px solid #3e2723;
     border-radius: 4px;
 }
 
-#shop-scroll::-webkit-scrollbar-thumb, #ranking-list::-webkit-scrollbar-thumb {
+#shop-scroll::-webkit-scrollbar-thumb, #ranking-list::-webkit-scrollbar-thumb, html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb {
     background: #f4d03f;
     border: 3px solid #d35400;
     border-radius: 4px;
 }
 
-#shop-scroll::-webkit-scrollbar-thumb:hover, #ranking-list::-webkit-scrollbar-thumb:hover {
+#shop-scroll::-webkit-scrollbar-thumb:hover, #ranking-list::-webkit-scrollbar-thumb:hover, html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover {
     background: #f1c40f;
 }
 

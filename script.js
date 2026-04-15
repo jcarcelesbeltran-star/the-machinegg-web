@@ -6,6 +6,33 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
+    const chickenSpriteSheet = new Image();
+    chickenSpriteSheet.onload = () => {
+        if (typeof drawUIIcons === 'function') drawUIIcons();
+    };
+    chickenSpriteSheet.src = 'pixelart_design/chicken.png';
+
+    const eggSpriteSheet = new Image();
+    eggSpriteSheet.src = 'pixelart_design/eggs.png';
+
+    const bgSpriteSheet = new Image();
+    bgSpriteSheet.src = 'pixelart_design/bg.png';
+
+    const roosterSpriteSheet = new Image();
+    roosterSpriteSheet.src = 'pixelart_design/rooster.png';
+
+    const chickSpriteSheet = new Image();
+    chickSpriteSheet.src = 'pixelart_design/chick.png';
+
+    const tombstoneSpriteSheet = new Image();
+    tombstoneSpriteSheet.src = 'pixelart_design/tombstone.png';
+
+    const heartSpriteSheet = new Image();
+    heartSpriteSheet.src = 'pixelart_design/heath.png';
+
+    const eggsSpriteSheet = new Image();
+    eggsSpriteSheet.src = 'pixelart_design/eggs.png';
+
     const sfxCok = new Audio('audio/cok.wav');
     const sfxEgg = new Audio('audio/egg.wav');
     const sfxMoney = new Audio('audio/money.mp3');
@@ -32,6 +59,7 @@
 
     function playSound(audioObj, vol = 1.0, baseThrottleMs = 50, rndPitch = false) {
         if (!audioObj) return;
+        if (window.isMusicMuted) return; // Global mute guard - blocks ALL sounds
 
         let key = audioObj.src;
         let now = Date.now();
@@ -84,9 +112,10 @@
     }
 
     window.isMusicMuted = false;
+    window.isBgmMuted = false;
     window.isAdPaused = false;
     function updateBGM() {
-        if (state.musicLevel > 0 && !window.isMusicMuted) {
+        if (state.musicLevel > 0 && !window.isMusicMuted && !window.isBgmMuted) {
             bgmTheme.volume = 0.15;
             bgmTheme.play().catch(e => { });
         } else {
@@ -95,7 +124,7 @@
     }
 
     document.body.addEventListener('click', () => {
-        if (state.musicLevel > 0 && bgmTheme.paused && !window.isMusicMuted) {
+        if (state.musicLevel > 0 && bgmTheme.paused && !window.isMusicMuted && !window.isBgmMuted) {
             bgmTheme.volume = 0.15;
             bgmTheme.play().catch(e => { });
         }
@@ -237,7 +266,8 @@
         c.action = 'walkToGraveyard';
         c.isGrey = false;
         c.isSad = true;
-        let activeDeaths = chickensArr.filter(ch => ch.action === 'walkToGraveyard' || ch.action === 'sadFace').length;
+        let activeDeaths = chickensArr.filter(ch => ch.action === 'walkToGraveyard' || ch.action === 'sadFace').length +
+            chicksArr.filter(ch => ch.action === 'walkToGraveyard' || ch.action === 'sadFace').length;
         let idx = tombstonesArr.length + activeDeaths - 1;
 
         let currentMatrix = getGraveyardMatrix();
@@ -551,8 +581,8 @@
     }
 
     function createChicken() {
-        const altColors = ['#dcc5a4', '#8b5a2b', '#444444'];
-        let cColor = Math.random() < 0.5 ? '#ffffff' : altColors[Math.floor(Math.random() * altColors.length)];
+        const CHICKEN_COLORS = ['#ffffff', '#ffffff', '#dcc5a4', '#8b5a2b', '#444444'];
+        let cColor = CHICKEN_COLORS[Math.floor(Math.random() * CHICKEN_COLORS.length)];
         return {
             x: Math.random() * (canvas.width - 40) + 20,
             y: 40 + Math.random() * (MEADOW_BOTTOM - 60),
@@ -569,6 +599,7 @@
             eggCount: 0,
             failTimer: 0,
             isGrey: false,
+            variant: Math.floor(Math.random() * 4), // Asigna color aleatorio
             hasFailedOnce: false,
             dead: false
         };
@@ -629,6 +660,10 @@
 
     function update(dt) {
         if (window.isAdPaused) return;
+
+        // GC safety caps to prevent localStorage quota exceeded errors and mitigate FPS drops
+        if (eggsArr.length > 1500) eggsArr.splice(0, eggsArr.length - 1500);
+        if (tombstonesArr.length > 300) tombstonesArr.splice(0, tombstonesArr.length - 300);
 
         // Retire pre-fade (2s blackout before cinematic)
         if (retireFadeTimer >= 0) {
@@ -701,7 +736,9 @@
             return;
         }
 
-        if (window.catPurrVol > 0) {
+        if (window.isMusicMuted) {
+            sfxCatPurr.volume = 0;
+        } else if (window.catPurrVol > 0) {
             window.catPurrVol = Math.max(0, window.catPurrVol - 0.5 * dt);
             sfxCatPurr.volume = window.catPurrVol;
         }
@@ -838,33 +875,101 @@
                 let dy = fy - ch.y;
                 let dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < 80) {
+                if (dist < 25) {
                     ch.troughY = undefined;
                     ch.velX = 0; ch.velY = 0;
-                    if (state.food >= 10) {
-                        state.food -= 10;
+                    if (state.food > 0 || !ch.hasFailedOnce) {
+                        ch.action = 'eating';
+                        ch.eatTimer = 2.0;
+                        if (ch.consumptionGoal === undefined) ch.consumptionGoal = 10;
+                    } else {
+                        assignGraveyardTarget(ch);
+                    }
+                }
+            } else if (ch.action === 'eating') {
+                ch.eatTimer -= dt;
+                ch.velX = 0; ch.velY = 0;
+                ch.direction = 1;
+
+                let drain = 10 * (dt / 2.0); // Consumes 10 units over 2 seconds (1 by 1 effect)
+                let actualDrain = Math.min(drain, state.food, ch.consumptionGoal);
+
+                state.food -= actualDrain;
+                ch.consumptionGoal -= actualDrain;
+
+                if (state.food <= 0) ch.eatTimer = 0; // Stop eating if food runs out
+
+                if (ch.eatTimer <= 0) {
+                    if (ch.consumptionGoal > 0.1) {
+                        // Still hungry, trough empty -> Angry phase
+                        ch.action = 'angry';
+                        ch.angryTimer = 10;
+                        ch.jumpTimer = 0.5;
+                        ch.isGrey = true;
+                        ch.hasFailedOnce = true;
+                        if (!ch.hasSuffered) {
+                            ch.hasSuffered = true;
+                            state.chickensSuffered = (state.chickensSuffered || 0) + 1;
+                        }
+                        playSound(sfxDeathBirth, 0.1);
+                    } else {
+                        // Ate fully, return to roam
                         ch.action = 'roam';
                         ch.foodTimer = 10 + Math.random() * 5;
                         ch.hasFailedOnce = false;
-                        // Provide a small scatter burst so they don't perfectly stack
+                        delete ch.consumptionGoal;
                         ch.velX = (Math.random() - 0.5) * 60;
                         ch.velY = Math.random() * 40;
-                    } else {
-                        if (ch.hasFailedOnce) {
-                            if (!ch.dead) playSound(sfxDeath, 0.4, 200);
-                            ch.dead = true;
-                        } else {
-                            ch.action = 'failedFood';
-                            ch.failTimer = 5;
-                            ch.isGrey = true;
-                            ch.hasFailedOnce = true;
-                            if (!ch.hasSuffered) {
-                                ch.hasSuffered = true;
-                                state.chickensSuffered = (state.chickensSuffered || 0) + 1;
-                            }
-                            playSound(sfxDeathBirth, 0.1);
-                        }
                     }
+                }
+            } else if (ch.action === 'angry') {
+                ch.angryTimer -= dt;
+                if (ch.roamTargetX === undefined) {
+                    ch.roamTargetX = 60 + Math.random() * (canvas.width - 120);
+                    ch.roamTargetY = 60 + Math.random() * (MEADOW_BOTTOM - 100);
+                }
+                let dx = ch.roamTargetX - ch.x;
+                let dy = ch.roamTargetY - ch.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 5) {
+                    let speed = 120; // Fast erratic running
+                    ch.velX = (dx / dist) * speed;
+                    ch.velY = (dy / dist) * speed;
+                } else {
+                    ch.roamTargetX = undefined;
+                }
+
+                if (ch.jumpTimer <= 0) ch.jumpTimer = 0.5; // continuous jumping
+
+                if (ch.angryTimer <= 0) {
+                    ch.action = 'goToFood'; // Go check trough again
+                    ch.troughY = undefined;
+                    ch.isGrey = false;
+                    ch.jumpTimer = 0;
+                }
+            } else if (ch.action === 'walkToGraveyard') {
+                let dx = ch.targetX - ch.x;
+                let dy = ch.targetY - ch.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 5) {
+                    let speed = 18;
+                    ch.velX = (dx / dist) * speed;
+                    ch.velY = (dy / dist) * speed;
+                    ch.direction = ch.velX >= 0 ? 1 : -1;
+                } else {
+                    ch.x = ch.targetX;
+                    ch.y = ch.targetY;
+                    ch.velX = 0;
+                    ch.velY = 0;
+                    if (ch.action !== 'sadFace') playSound(sfxDeath, 0.5, 200);
+                    ch.action = 'sadFace';
+                    ch.giveUpTimer = 4;
+                }
+            } else if (ch.action === 'sadFace') {
+                ch.giveUpTimer -= dt;
+                if (ch.giveUpTimer <= 0) {
+                    ch.dead = true;
+                    ch.sadDeath = true;
                 }
             }
 
@@ -1063,7 +1168,7 @@
                         layEgg(c.x, c.y, c.direction);
                         c.squishTimer = 0.5;
                         c.jumpTimer = 0.5;
-                        c.eggTimer = 10 - state.dietLevel;
+                        c.eggTimer = 10 - Math.min(4, (state.dietLevel || 0));
                         c.eggCount++;
                         let eggCap = state.batchLevel === 2 ? 8 : (state.batchLevel === 1 ? 4 : 2);
                         if (c.eggCount >= eggCap) {
@@ -1325,8 +1430,11 @@
                         e.hasHitGround = true;
                     }
                     e.y = targetY;
-                    if (e.velY > 10) {
-                        e.velY *= -0.2;
+                    // Velocity-proportional damping: fast impacts dead-stop, only soft taps micro-bounce
+                    if (e.velY > 80) {
+                        e.velY = 0;
+                    } else if (e.velY > 10) {
+                        e.velY *= -0.05;
                     } else {
                         e.velY = 0;
                     }
@@ -1339,12 +1447,12 @@
                 e.velX = Math.max(-1000, Math.min(1000, e.velX));
                 e.velY = Math.max(-1500, Math.min(1500, e.velY));
 
-                // Angle update for rolling
+                // Angle update: only rotate while airborne, freeze on landing or resting
                 if (e.type === 'package') {
                     e.angle = 0;
                 } else {
                     e.angle = e.angle || 0;
-                    if (Math.abs(e.velX) > 5 && e.y >= targetY - 2) {
+                    if (e.y < targetY - 2 && Math.abs(e.velY) > 20) {
                         e.angle += (e.velX * dt) / 5;
                     }
                 }
@@ -1424,21 +1532,32 @@
 
                     if (!isBox1 && !isBox2) {
                         let dist = Math.sqrt(dx * dx + dy * dy);
-                        let minDist = 10;
+                        let minDist = 8; // Slightly smaller collider for better flow
 
                         if (dist === 0) { dx = (Math.random() - 0.5) * 0.1; dy = (Math.random() - 0.5) * 0.1; dist = 0.1; }
 
                         if (dist < minDist) {
                             let overlap = minDist - dist;
                             let nx = dx / dist, ny = dy / dist;
-                            let push = overlap * 0.5;
-                            e1.x -= nx * push; e1.y -= ny * push;
-                            e2.x += nx * push; e2.y += ny * push;
 
-                            let avgVx = (e1.velX + e2.velX) * 0.5;
-                            let avgVy = (e1.velY + e2.velY) * 0.5;
-                            e1.velX = avgVx; e2.velX = avgVx;
-                            e1.velY = avgVy; e2.velY = avgVy;
+                            // Simulate mass anchoring: lower eggs push higher eggs without sliding sideways
+                            let w1 = 0.5, w2 = 0.5;
+                            if (dy > 2) {
+                                w1 = 0.95; w2 = 0.05; // e2 is much heavier because it's lower
+                                if (e1.velY > 0) e1.velY *= 0.5; // Damping falling on top
+                                // Lateral friction: top egg inherits velocity from bottom egg
+                                e1.velX += (e2.velX - e1.velX) * 0.5;
+                            }
+                            else if (dy < -2) {
+                                w1 = 0.05; w2 = 0.95;
+                                if (e2.velY > 0) e2.velY *= 0.5;
+                                // Lateral friction: top egg inherits velocity from bottom egg
+                                e2.velX += (e1.velX - e2.velX) * 0.5;
+                            }
+
+                            let push = overlap * 0.7; // Global resolution factor
+                            e1.x -= nx * push * w1; e1.y -= ny * push * w1;
+                            e2.x += nx * push * w2; e2.y += ny * push * w2;
                         }
                     } else if (isBox1 && isBox2) {
                         let overlapX = 16 - dx;
@@ -1446,16 +1565,12 @@
 
                         if (overlapX > 0 && overlapY > 0) {
                             if (overlapX < overlapY) {
-                                let push = overlapX * 0.5;
+                                let push = overlapX * 0.35;
                                 e1.x -= push; e2.x += push;
                             } else {
-                                let push = overlapY * 0.5 * Math.sign(dy);
+                                let push = overlapY * 0.35 * Math.sign(dy);
                                 e1.y -= push; e2.y += push;
                             }
-                            let avgVx = (e1.velX + e2.velX) * 0.5;
-                            let avgVy = (e1.velY + e2.velY) * 0.5;
-                            e1.velX = avgVx; e2.velX = avgVx;
-                            e1.velY = avgVy; e2.velY = avgVy;
                         }
                     } else {
                         let box = isBox1 ? e1 : e2;
@@ -1471,13 +1586,9 @@
                             if (dist === 0) { cx_dx = 0; cx_dy = -1; dist = 1; }
                             let overlap = 5 - dist;
                             let nx = cx_dx / dist, ny = cx_dy / dist;
-                            let push = overlap * 0.5;
+                            let push = overlap * 0.35;
                             circ.x += nx * push; circ.y += ny * push;
                             box.x -= nx * push; box.y -= ny * push;
-                            let avgVx = (circ.velX + box.velX) * 0.5;
-                            let avgVy = (circ.velY + box.velY) * 0.5;
-                            circ.velX = avgVx; box.velX = avgVx;
-                            circ.velY = avgVy; box.velY = avgVy;
                         }
                     }
                 }
@@ -1547,437 +1658,283 @@
         updateUI();
     }
 
+
+
+    function renderChick(ctx, ch) {
+        if (!chickSpriteSheet || !chickSpriteSheet.complete || chickSpriteSheet.naturalWidth === 0) return;
+
+        let dir = ch.direction || 1;
+        let isWalking = Math.abs(ch.velX) > 5 || Math.abs(ch.velY) > 5;
+        let isEating = (ch.action === 'eating' || ch.action === 'drinking' || ch.action === 'failedFood' || ch.action === 'failedWater');
+        let isVertical = (!ch.isSad && !isEating) && (Math.abs(ch.velY) > Math.abs(ch.velX) * 1.2);
+        let isFront = isVertical && ch.velY > 0;
+        let isBack = isVertical && ch.velY < 0;
+
+        let row = 0;
+        let frame = 0;
+        let ANIM_FRAMES = 9;
+        let t = Date.now();
+
+        if (ch.action === 'sadFace' || (ch.giveUpTimer || 0) > 0) {
+            row = 0; // Idle row
+            frame = 0; // Static frame
+        }
+        else if (isEating) {
+            row = 4;
+            let peckPhase = ((ch.eatTimer || ch.failTimer || 0) * 2.5) % 1.0;
+            frame = Math.min(ANIM_FRAMES - 1, Math.floor(peckPhase * ANIM_FRAMES));
+        }
+        else if ((ch.jumpTimer > 0 || ch.squishTimer > 0) && ch.action !== 'angry') {
+            row = 5;
+            let p = 0.2;
+            if (ch.jumpTimer > 0) p = 0.2 + (1.0 - (ch.jumpTimer / 0.5)) * 0.6;
+            frame = Math.max(0, Math.min(ANIM_FRAMES - 1, Math.floor(p * ANIM_FRAMES)));
+        }
+        else if (isWalking) {
+            if (isFront) row = 2;
+            else if (isBack) row = 3;
+            else row = 1;
+
+            let stepMs = 942.47 / ANIM_FRAMES;
+            let mockTime = t / 60 * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        } else {
+            row = 0;
+            let stepMs = 942.47 / ANIM_FRAMES;
+            let mockTime = t / 60 * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        }
+
+        let jumpY = ch.jumpTimer > 0 ? -4 * 8 * (1 - ch.jumpTimer / 0.5) * (ch.jumpTimer / 0.5) : 0;
+        let shadowW = (ch.squishTimer > 0 ? 14 : 10) * Math.max(0.4, 1 - jumpY / -15);
+
+        let startGrow = 90 - ((typeof state !== 'undefined' ? (state.growthLevel || 0) : 0) * 6);
+        let currentTimer = ch.growTimer !== undefined ? ch.growTimer : startGrow;
+        let progress = 1.0 - Math.max(0, Math.min(1, currentTimer / startGrow));
+        
+        let gScale = 0.8 + (progress * 0.7);
+        shadowW *= gScale;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(ch.x - shadowW / 2, ch.y + 4, shadowW, 3);
+
+        ctx.save();
+        ctx.translate(ch.x, ch.y + jumpY + 7);
+
+        if (ch.action === 'sadFace' || (ch.giveUpTimer || 0) > 0) {
+            // Gradually fall over based on giveUpTimer (4s to 0s)
+            let deathP = 1.0 - ((ch.giveUpTimer || 0) / 4);
+            ctx.rotate((Math.PI / 2) * deathP * dir);
+        }
+
+        ctx.scale(dir * gScale, gScale);
+
+        // Offset Y=-64 places the bottom of the 64px cell exactly at the anchor (aligned with the shadow)
+        ctx.drawImage(chickSpriteSheet, frame * 64, row * 64, 64, 64, -32, -64, 64, 64);
+
+        ctx.restore();
+    }
+
     function renderChicken(ctx, c) {
-        let isSquished = c.squishTimer > 0;
-        let w = isSquished ? 24 : 20;
-        let h = isSquished ? 12 : 16;
-        let offsetP = isSquished ? 4 : 0;
 
-        let deathP = (c.action === 'sadFace') ? Math.max(0, 1.0 - (c.giveUpTimer / 4)) : 0;
-        let squatP = Math.min(1.0, deathP * 2); // Reaches full squat by halfway (2s)
+        if (!chickenSpriteSheet.complete || chickenSpriteSheet.naturalWidth === 0) return;
 
-        if (c.action === 'sadFace') {
-            offsetP += squatP * 12; // Sinks down 
-            h = Math.max(8, h - squatP * 8); // Flattens by 50%
-            w = w + squatP * 6; // Body gets wider
-        }
-
+        let dir = c.direction || 1;
         let isWalking = Math.abs(c.velX) > 5 || Math.abs(c.velY) > 5;
-        let t = c.isGrey ? (Date.now() / 60 + (c._i = c._i || Math.random() * 1000)) : (Date.now() / 150 + (c._i = c._i || Math.random() * 1000));
-        let headBobX = isWalking ? Math.cos(t) * 2 : 0;
-        let headBobY = isWalking ? Math.abs(Math.sin(t)) * 2 : (Math.sin(t / 3) > 0.9 ? 3 : 0);
-
         let isEating = (c.action === 'eating' || c.action === 'drinking' || c.action === 'failedFood' || c.action === 'failedWater');
-        if (isEating) {
-            let peckPhase = ((c.eatTimer || c.failTimer || 0) * 2.5) % 1.0;
-            if (peckPhase < 0.3) { headBobX = 3; headBobY = 10; }
-            else { headBobX = 1; headBobY = 4; }
-        }
-        if (c.action === 'sadFace') {
-            headBobX = 0;
-            headBobY = 0; // Disable random idle twitches while dying
-        }
+        let isVertical = (!c.isSad && !isEating) && (Math.abs(c.velY) > Math.abs(c.velX) * 1.2);
+        let isFront = isVertical && c.velY > 0;
+        let isBack = isVertical && c.velY < 0;
 
-        let wingFlap = isWalking ? Math.sin(t) * (c.isGrey ? 4 : 2) : 0;
-        let legSwing = isWalking ? Math.sin(t) * (c.isGrey ? 7 : 4) : 0;
+        let cHex = (c.color || '#ffffff').toLowerCase();
+        let baseRow = 0;
+        if (cHex === '#dcc5a4') baseRow = 9;
+        else if (cHex === '#8b5a2b') baseRow = 18;
+        else if (cHex === '#444444') baseRow = 27;
+
+        let row = 0;
+        let frame = 0;
+        let ANIM_FRAMES = 8;
+
+        let t = Date.now();
+        let isGrey = c.isGrey || false;
+
+        if (c.action === 'sadFace') {
+            if (c.giveUpTimer < 4) {
+                row = 8;
+                let deathP = 1.0 - (c.giveUpTimer / 4);
+                frame = Math.min(ANIM_FRAMES - 1, Math.floor(deathP * ANIM_FRAMES));
+            } else {
+                row = 7;
+                let stepMs = 942.47 / ANIM_FRAMES;
+                let mockTime = t + c.x * 100;
+                frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+            }
+        }
+        else if (isEating) {
+            row = 4;
+            let peckPhase = ((c.eatTimer || c.failTimer || c.mateTimer || 0) * 2.5) % 1.0;
+            frame = Math.min(ANIM_FRAMES - 1, Math.floor(peckPhase * ANIM_FRAMES));
+        }
+        else if (c.jumpTimer > 0) {
+            row = 5;
+            let p = 0.2 + (1.0 - (c.jumpTimer / 0.5)) * 0.6;
+            frame = Math.max(0, Math.min(ANIM_FRAMES - 1, Math.floor(p * ANIM_FRAMES)));
+        }
+        else if (isGrey) {
+            row = 6;
+            let stepMs = 376.99 / ANIM_FRAMES;
+            let mockTime = (t / 60 + (c._i || (c._i = Math.random() * 1000))) * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+            if (isNaN(frame)) frame = 0;
+        }
+        else if (isWalking) {
+            if (isFront) row = 2;
+            else if (isBack) row = 3;
+            else row = 1;
+
+            let stepMs = 942.47 / ANIM_FRAMES;
+            let mockTime = t / 60 * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        } else {
+            row = 0;
+            let stepMs = 942.47 / ANIM_FRAMES;
+            let mockTime = t / 60 * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        }
 
         let jumpY = 0;
         if (c.jumpTimer > 0) {
             let p = 1.0 - (c.jumpTimer / 0.5);
-            jumpY = -4 * 15 * p * (1 - p);
-            wingFlap = -4;
-            legSwing = 0;
+            jumpY = -4 * 8 * p * (1 - p);
         }
 
-        // Shadow
+        // HOVER SWAY physics - mouse proximity from renderChicken
+        let pcdx = lastMousePos.x - c.x;
+        let pcdy = lastMousePos.y - (c.y - 4);
+        let isNear = state.hasPetting && Math.abs(pcdx) < 34 && Math.abs(pcdy) < 34;
+
+        if (isNear) {
+            // Lean towards cursor when nearby
+            let targetSway = Math.max(-0.35, Math.min(0.35, pcdx / 28));
+            c.dynamicSway = (c.dynamicSway || 0) + (targetSway - (c.dynamicSway || 0)) * 0.3;
+        } else {
+            // Smoothly return to upright when mouse leaves
+            c.dynamicSway = (c.dynamicSway || 0) * 0.85;
+            if (Math.abs(c.dynamicSway) < 0.01) {
+                c.dynamicSway = 0;
+                c.isHovered = false;
+                c.wasHovered = false;
+            }
+        }
+        let sway = c.dynamicSway || 0;
+
+        let isSquished = c.squishTimer > 0 || row === 5;
+        let w = isSquished ? 24 : 20;
+        let sScale = 1 - (jumpY / -15);
+        let shadowW = (w * 0.8) * Math.max(0.4, sScale);
+
         ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        let sScale = c.jumpTimer > 0 ? 1 - (jumpY / -30) : 1;
-        let shadowW = (w * 0.8) * sScale;
-        ctx.fillRect(c.x - shadowW / 2, c.y + 7, shadowW, 4); // Shadow stays at ground level, unfazed by offsetP
+        ctx.fillRect(c.x - shadowW / 2, c.y + 17, shadowW, 4);
 
         ctx.save();
-        ctx.translate(0, jumpY);
+        ctx.translate(c.x, c.y + 11 + jumpY);
+        ctx.scale(dir, 1);
+        if (sway !== 0) ctx.transform(1, 0, -sway * dir, 1, 0, 0);
 
-        // Legs
-        ctx.fillStyle = '#ffa500';
-        ctx.fillRect(c.x - 4 + legSwing, c.y + 4 + offsetP, 2, 4 - squatP * 4); // Back leg shrinks
-        ctx.fillRect(c.x + 2 - legSwing, c.y + 4 + offsetP, 2, 4 - squatP * 4); // Front leg shrinks
+        let sx = frame * 64;
+        let sy = (row + baseRow) * 64;
 
-        // Body
-        ctx.fillStyle = c.color || '#ffffff';
-        ctx.fillRect(c.x - (w / 2), c.y - 12 + offsetP, w, h);
+        ctx.drawImage(chickenSpriteSheet, sx, sy, 64, 64, -32, -44, 64, 64);
 
-        // Head Base Prep
-        let dir = c.direction || 1;
-        let isVertical = (!c.isSad && c.action !== 'eating' && c.action !== 'drinking') && (Math.abs(c.velY) > Math.abs(c.velX) * 1.2);
-        let isFrontActive = isVertical && c.velY > 0;
-        let isBackActive = isVertical && c.velY < 0;
-        let isProfile = !isFrontActive && !isBackActive;
-
-        // Wing
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        if (isProfile) {
-            ctx.fillRect(c.x - 4, c.y - 6 + offsetP + wingFlap, 8 + squatP * 2, 5 - squatP);
-        } else {
-            // Two side wings for Front/Back views
-            ctx.fillRect(c.x - (w / 2) - 2, c.y - 6 + offsetP + wingFlap, 3, 6);
-            ctx.fillRect(c.x + (w / 2) - 1, c.y - 6 + offsetP + wingFlap, 3, 6);
-        }
-
-        let sadHeadOffsetX = c.isSad ? dir * 2 + (dir * squatP * 3) : 0;
-        let sadHeadOffsetY = c.isSad ? 7 + (squatP * 4) : 0; // Slumped down looking at the floor
-        let angryHeadOffsetX = c.isGrey ? dir * 3 : 0;
-
-        let hDirOffset = isProfile ? (dir * 6) : (dir * 2);
-
-        let headX = c.x + hDirOffset + (dir * headBobX) + sadHeadOffsetX + angryHeadOffsetX;
-        let headY = c.y - 14 + offsetP + headBobY + sadHeadOffsetY;
-
-        ctx.save();
-        ctx.translate(headX, headY);
-
-        if (isFrontActive) {
-            ctx.fillStyle = c.color || '#ffffff';
-            ctx.fillRect(-5, -4, 10, 10);
-
-            // Front Comb
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-2, -8, 4, 4);
-
-            // Two Eyes
-            if (c.isGrey) {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(-3, -2, 2, 1);
-                ctx.fillRect(1, -2, 2, 1);
-                ctx.fillStyle = '#e63946';
-                ctx.fillRect(-3, -1, 2, 1);
-                ctx.fillRect(1, -1, 2, 1);
-            } else {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(-3, -2, 2, 2);
-                ctx.fillRect(1, -2, 2, 2);
-            }
-
-            // Front Beak
-            ctx.fillStyle = '#ffa500';
-            ctx.fillRect(-3, 0, 4, 4);
-        } else if (isBackActive) {
-            ctx.fillStyle = c.color || '#ffffff';
-            ctx.fillRect(-5, -4, 10, 10);
-
-            // Back Comb
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-2, -8, 4, 4);
-        } else {
-            ctx.scale(dir, 1);
-
-            ctx.fillStyle = c.color || '#ffffff';
-            ctx.fillRect(-6, -4, 10, 10);
-
-            // Comb Profile
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-2, -8, 4, 4);
-            ctx.fillRect(-4, -6, 2, 2);
-
-            // Beak Profile
-            ctx.fillStyle = '#ffa500';
-            if (c.isSad) {
-                ctx.fillRect(2, 2, 4, 4); // Angled down towards the floor
-            } else {
-                ctx.fillRect(4, -1, 4, 4);
-            }
-            // Profile Eye
-            if (c.isSad) {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(1, -1, 3, 1);
-                let phase = Math.floor((Date.now() / 150 + c.x) % 6);
-                if (phase < 5) {
-                    ctx.fillStyle = '#81d4fa';
-                    ctx.fillRect(1, phase, 3, 3);
-                    ctx.fillStyle = '#4fc3f7';
-                    ctx.fillRect(2, phase + 1, 1, 2);
-                }
-            } else if (c.isGrey) {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(2, -2, 3, 1);
-                ctx.fillStyle = '#e63946';
-                ctx.fillRect(3, -1, 2, 1);
-            } else {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(2, -2, 2, 2);
-            }
-        }
-
-        ctx.restore();
-        ctx.restore();
-    }
-
-    function renderChick(ctx, ch) {
-        let baseTime = 90 - ((state.growthLevel || 0) * 6);
-        let p = 1 - (ch.growTimer / baseTime);
-        let scale = 1.0;
-        if (p > 0.66) scale = 1.5;
-        else if (p > 0.33) scale = 1.25;
-
-        let dir = ch.direction || 1;
-        let isVertical = (!ch.isSad && ch.action !== 'eating' && ch.action !== 'drinking') && (Math.abs(ch.velY) > Math.abs(ch.velX) * 1.2);
-        let isFrontActive = isVertical && ch.velY > 0;
-        let isBackActive = isVertical && ch.velY < 0;
-        let isProfile = !isFrontActive && !isBackActive;
-
-        let w = 12, h = 8;
-        let isWalking = Math.abs(ch.velX) > 5 || Math.abs(ch.velY) > 5;
-        let t = Date.now() / 150 + (ch._i = ch._i || Math.random() * 1000);
-
-        let headBobX = isWalking ? Math.cos(t) * 1.5 : 0;
-        let headBobY = isWalking ? Math.abs(Math.sin(t)) * 1.5 : (Math.sin(t / 3) > 0.9 ? 2 : 0);
-
-        let isEating = (ch.action === 'eating' || ch.action === 'drinking' || ch.action === 'failedFood' || ch.action === 'failedWater');
-        if (isEating) {
-            let peckPhase = ((ch.eatTimer || ch.failTimer || 0) * 2.5) % 1.0;
-            if (peckPhase < 0.3) { headBobX = 2; headBobY = 6; }
-            else { headBobX = 0; headBobY = 2; }
-        }
-
-        let wingFlap = isWalking ? Math.sin(t) * 1.5 : 0;
-        let legSwing = isWalking ? Math.sin(t) * 2.5 : 0;
-
-        ctx.save();
-        ctx.translate(ch.x, ch.y);
-        ctx.scale(scale, scale);
-        ctx.translate(-ch.x, -ch.y);
-
-        // Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillRect(ch.x - 5, ch.y + 4, 10, 3);
-
-        // Legs (matching adult logic strictly)
-        ctx.fillStyle = ch.isGrey ? '#d35400' : '#ffa500';
-        ctx.fillRect(ch.x - 2 + legSwing, ch.y + 4, 1, 2); // Back (Adult logic: no profile check)
-        ctx.fillRect(ch.x + 1 - legSwing, ch.y + 4, 1, 2); // Front
-
-        // Body
-        ctx.fillStyle = ch.isGrey ? '#e63946' : '#ffeb3b';
-        ctx.fillRect(ch.x - (w / 2), ch.y - 6, w, h);
-
-        // Wing
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-        if (isProfile) {
-            ctx.fillRect(ch.x - 2, ch.y - 3 + wingFlap, 5, 3);
-        } else {
-            ctx.fillRect(ch.x - (w / 2) - 1, ch.y - 3 + wingFlap, 2, 4); // Left
-            ctx.fillRect(ch.x + (w / 2) - 1, ch.y - 3 + wingFlap, 2, 4); // Right
-        }
-
-        // Head
-        let hDirOffset = isProfile ? (dir * 4) : 0;
-        let headX = ch.x + hDirOffset + (isProfile ? dir * headBobX : 0);
-        let headY = ch.y - 6 + headBobY;
-
-        ctx.save();
-        ctx.translate(headX, headY);
-
-        if (isFrontActive) {
-            ctx.fillStyle = ch.isGrey ? '#e63946' : '#ffeb3b';
-            ctx.fillRect(-3, -3, 6, 6);
-
-            // Two Eyes (Front)
-            ctx.fillStyle = '#000';
-            ctx.fillRect(-2, -1, 1, 1);
-            ctx.fillRect(1, -1, 1, 1);
-
-            // Beak (Front)
-            ctx.fillStyle = ch.isGrey ? '#d35400' : '#ffa500';
-            ctx.fillRect(-1, 1, 2, 2);
-        } else if (isBackActive) {
-            ctx.fillStyle = ch.isGrey ? '#e63946' : '#ffeb3b';
-            ctx.fillRect(-3, -3, 6, 6);
-        } else {
-            ctx.scale(dir, 1);
-
-            ctx.fillStyle = ch.isGrey ? '#e63946' : '#ffeb3b';
-            ctx.fillRect(-3, -3, 6, 6);
-
-            // Beak (Profile)
-            ctx.fillStyle = ch.isGrey ? '#d35400' : '#ffa500';
-            ctx.fillRect(2, 0, 3, 2);
-
-            // Eye (Profile)
-            ctx.fillStyle = '#000';
-            ctx.fillRect(1, -1, 1, 1);
-        }
-
-        ctx.restore();
         ctx.restore();
     }
 
     function renderRooster(ctx, r) {
-        let isWalking = Math.abs(r.velX) > 5 || Math.abs(r.velY) > 5;
-        let t = Date.now() / 150 + (r._i = r._i || Math.random() * 1000);
-
-        let headBobX = isWalking ? Math.cos(t) * 2 : 0;
-        let headBobY = isWalking ? Math.abs(Math.sin(t)) * 2 : (Math.sin(t / 3) > 0.9 ? 4 : 0);
-
-        let isEating = (r.action === 'eating' || r.action === 'drinking' || r.action === 'failedFood' || r.action === 'failedWater');
-        if (isEating) {
-            let peckPhase = ((r.eatTimer || r.failTimer || r.mateTimer || 0) * 2.5) % 1.0;
-            if (peckPhase < 0.3) { headBobX = 3; headBobY = 12; }
-            else { headBobX = 1; headBobY = 4; }
-        }
-
-        let wingFlap = isWalking ? Math.sin(t) * 3 : 0;
-        let legSwing = isWalking ? Math.sin(t) * 5 : 0;
-        let tailBob = isWalking ? Math.cos(t) * 2 : 0;
+        if (!roosterSpriteSheet || !roosterSpriteSheet.complete || roosterSpriteSheet.naturalWidth === 0) return;
 
         let dir = r.direction || 1;
+        let isWalking = Math.abs(r.velX) > 5 || Math.abs(r.velY) > 5;
+        let isEating = (r.action === 'eating' || r.action === 'drinking' || r.action === 'failedFood' || r.action === 'failedWater');
+        let isVertical = (!r.isSad && !isEating) && (Math.abs(r.velY) > Math.abs(r.velX) * 1.2);
+        let isFront = isVertical && r.velY > 0;
+        let isBack = isVertical && r.velY < 0;
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillRect(r.x - 10, r.y + 10, 20, 4);
+        let row = 0;
+        let frame = 0;
+        let ANIM_FRAMES = 8;
 
-        ctx.save();
-        let squash = r.squishTimer > 0 ? 0.7 : 1.0;
-        ctx.translate(r.x, r.y + (r.squishTimer > 0 ? 5 : 0));
-        ctx.scale(dir, squash);
+        let t = Date.now();
+        let isGrey = r.isGrey || false;
 
-        // Legs
-        ctx.fillStyle = '#ff8c00'; // Dark orange
-        ctx.fillRect(-4 + legSwing, 6, 3, 6); // Back
-        ctx.fillRect(4 - legSwing, 6, 3, 6); // Front
-        let isVertical = (!r.isSad && r.action !== 'eating' && r.action !== 'drinking') && (Math.abs(r.velY) > Math.abs(r.velX) * 1.2);
-        let isFrontActive = isVertical && r.velY > 0;
-        let isBackActive = isVertical && r.velY < 0;
-        let isProfile = !isFrontActive && !isBackActive;
-
-        // Majestic Tail Feathers
-        if (isProfile) {
-            ctx.fillStyle = '#004d00';
-            ctx.fillRect(-16, -20 + tailBob, 10, 18);
-            ctx.fillStyle = '#191970';
-            ctx.fillRect(-22, -18 + tailBob, 8, 14);
-            ctx.fillStyle = '#ff4500';
-            ctx.fillRect(-26, -14 + tailBob, 6, 12);
-        } else if (isFrontActive) {
-            ctx.fillStyle = '#004d00';
-            ctx.fillRect(-6, -20 + tailBob, 12, 10);
-        } else if (isBackActive) {
-            ctx.fillStyle = '#004d00';
-            ctx.fillRect(-14, -22 + tailBob, 28, 20);
-            ctx.fillStyle = '#191970';
-            ctx.fillRect(-18, -18 + tailBob, 6, 14);
-            ctx.fillRect(12, -18 + tailBob, 6, 14);
-            ctx.fillStyle = '#ff4500';
-            ctx.fillRect(-22, -14 + tailBob, 6, 12);
-            ctx.fillRect(16, -14 + tailBob, 6, 12);
-        }
-
-        // Body (Deep reddish-brown)
-        ctx.fillStyle = '#8b4513';
-        ctx.fillRect(-13, -16, 26, 22);
-
-        // Breast (Chocolate/Copper accent)
-        ctx.fillStyle = '#d2691e';
-        ctx.fillRect(-5, -12, 10, 18);
-
-        // Wing
-        if (isProfile) {
-            ctx.fillStyle = '#a0522d';
-            ctx.fillRect(-6, -8 + wingFlap, 14, 10);
-            ctx.fillStyle = '#8b0000'; // Wing tip
-            ctx.fillRect(-4, -4 + wingFlap, 10, 4);
-        } else {
-            // Front/Back Wings (Sides)
-            ctx.fillStyle = '#a0522d';
-            ctx.fillRect(-16, -8 + wingFlap, 5, 12);
-            ctx.fillRect(11, -8 + wingFlap, 5, 12);
-        }
-
-        // Head Base coordinates (local to body)
-        let hDx = isProfile ? 6 : 0;
-        let hX = hDx + headBobX;
-        let hY = -18 + headBobY;
-
-        ctx.save();
-        ctx.translate(hX, hY);
-
-        if (isFrontActive) {
-            // Neck Hackles (Golden yellow feathers)
-            ctx.fillStyle = '#daa520';
-            ctx.fillRect(-6, -2, 14, 12);
-
-            // Head Area
-            ctx.fillStyle = '#8b4513';
-            ctx.fillRect(-6, -8, 12, 12);
-
-            // Front Comb
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-5, -14, 10, 6);
-            ctx.fillRect(-3, -18, 6, 4);
-
-            // Front Wattle
-            ctx.fillRect(-5, 4, 4, 6);
-            ctx.fillRect(1, 4, 4, 6);
-
-            // Front Beak
-            ctx.fillStyle = '#ffd700';
-            ctx.fillRect(-2, 0, 4, 5);
-
-            // Front Eyes
-            ctx.fillStyle = '#000';
-            ctx.fillRect(-5, -5, 3, 3);
-            ctx.fillRect(2, -5, 3, 3);
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(-4, -5, 1, 1);
-            ctx.fillRect(3, -5, 1, 1);
-        } else if (isBackActive) {
-            // Neck Hackles
-            ctx.fillStyle = '#daa520';
-            ctx.fillRect(-7, -2, 14, 12);
-
-            // Head Area
-            ctx.fillStyle = '#8b4513';
-            ctx.fillRect(-6, -8, 12, 12);
-
-            // Back Comb
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-5, -14, 10, 6);
-            ctx.fillRect(-3, -18, 6, 4);
-        } else {
-            // Neck Hackles (Golden yellow feathers)
-            ctx.fillStyle = '#daa520';
-            ctx.fillRect(-8, -2, 14, 12);
-
-            // Head Area
-            ctx.fillStyle = '#8b4513';
-            ctx.fillRect(-6, -8, 12, 12);
-
-            // Profile Comb
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-8, -14, 14, 6);
-            ctx.fillRect(-4, -18, 8, 4);
-
-            // Profile Wattle
-            ctx.fillRect(-2, 4, 6, 8);
-
-            // Profile Beak
-            ctx.fillStyle = '#ffd700';
-            ctx.fillRect(6, -2, 6, 6);
-
-            // Profile Eye
-            if (r.action === 'sadFace' || r.action === 'walkToGraveyard') {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(3, -4, 3, 1);
-                ctx.fillStyle = '#00bbff';
-                ctx.fillRect(4, -2, 2, 2);
+        if (r.action === 'sadFace') {
+            if (r.giveUpTimer < 4) {
+                row = 8;
+                let deathP = 1.0 - (r.giveUpTimer / 4);
+                frame = Math.min(ANIM_FRAMES - 1, Math.floor(deathP * ANIM_FRAMES));
             } else {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(3, -5, 3, 3);
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(4, -5, 1, 1);
+                row = 7;
+                let stepMs = 942.47 / ANIM_FRAMES;
+                let mockTime = t + r.x * 100;
+                frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
             }
         }
+        else if (isEating) {
+            row = 4;
+            let peckPhase = ((r.eatTimer || r.failTimer || r.mateTimer || 0) * 2.5) % 1.0;
+            frame = Math.min(ANIM_FRAMES - 1, Math.floor(peckPhase * ANIM_FRAMES));
+        }
+        else if (r.jumpTimer > 0 || r.squishTimer > 0) {
+            row = 5;
+            let p = 0.2;
+            if (r.jumpTimer > 0) p = 0.2 + (1.0 - (r.jumpTimer / 0.5)) * 0.6;
+            frame = Math.max(0, Math.min(ANIM_FRAMES - 1, Math.floor(p * ANIM_FRAMES)));
+        }
+        else if (isGrey) {
+            row = 6;
+            let stepMs = 376.99 / ANIM_FRAMES;
+            let mockTime = (t / 60 + (r._i || (r._i = Math.random() * 1000))) * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        }
+        else if (isWalking) {
+            if (isFront) row = 2;
+            else if (isBack) row = 3;
+            else row = 1;
 
-        ctx.restore();
+            let stepMs = 942.47 / ANIM_FRAMES;
+            let mockTime = t / 60 * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        } else {
+            row = 0;
+            let stepMs = 942.47 / ANIM_FRAMES;
+            let mockTime = t / 60 * 60;
+            frame = Math.floor(mockTime / stepMs) % ANIM_FRAMES;
+        }
+
+        let jumpY = 0;
+        if (r.jumpTimer > 0) {
+            let p = 1.0 - (r.jumpTimer / 0.5);
+            jumpY = -4 * 8 * p * (1 - p);
+        }
+
+        let isSquished = r.squishTimer > 0 || row === 5;
+        let w = isSquished ? 24 : 20;
+        let sScale = 1 - (jumpY / -15);
+        let shadowW = (w * 1.8) * Math.max(0.4, sScale);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(r.x - shadowW / 2, r.y - 5, shadowW, 6);
+
+        ctx.save();
+        ctx.translate(r.x, r.y + jumpY);
+        ctx.scale(dir, 1);
+
+        let sx = frame * 64;
+        let sy = row * 64;
+
+        // Offset Y=-61 places the bottom of the 64px cell exactly at +3 from the anchor (aligned with shadow)
+        ctx.drawImage(roosterSpriteSheet, sx, sy, 64, 64, -32, -61, 64, 64);
+
         ctx.restore();
     }
 
@@ -1993,54 +1950,13 @@
         }
 
         // Backgrounds
-        ctx.fillStyle = '#7cba3a';
-        ctx.fillRect(0, 0, canvas.width, MEADOW_BOTTOM);
-
-        drawFence(ctx, canvas.width, MEADOW_BOTTOM);
-
-        // Decorate meadow lightly
-        ctx.fillStyle = '#6b9c2a';
-        for (let i = 1; i < 30; i++) {
-            let gx = (i * 137) % canvas.width;
-            let gy = (i * 93) % MEADOW_BOTTOM;
-            if (gy < 65) gy += 65;
-            ctx.fillRect(gx, gy, 4, 4);
-            ctx.fillRect(gx + 4, gy - 4, 4, 8);
+        if (bgSpriteSheet.complete && bgSpriteSheet.naturalWidth > 0) {
+            ctx.drawImage(bgSpriteSheet, 0, 0, canvas.width, canvas.height);
+        } else {
+            // Fallback (Flat Green) if image fails to load
+            ctx.fillStyle = '#7cba3a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-
-        // Meadow grass
-        ctx.fillStyle = '#6b9c2a';
-        ctx.fillRect(80, MEADOW_BOTTOM, canvas.width - 80, 30); // Leave a gap on the LEFT
-
-        // Basement Wood Shed Planks (spanning entire canvas)
-        ctx.fillStyle = '#3a2318';
-        ctx.fillRect(0, MEADOW_BOTTOM, canvas.width, canvas.height - MEADOW_BOTTOM);
-        ctx.fillStyle = '#2b170e';
-        for (let y = MEADOW_BOTTOM + 20; y < canvas.height; y += 40) {
-            ctx.fillRect(0, y, canvas.width, 3);
-        }
-        ctx.fillStyle = '#221109';
-        for (let x = 20; x <= canvas.width; x += 120) {
-            ctx.fillRect(x, MEADOW_BOTTOM, 16, canvas.height - MEADOW_BOTTOM);
-            ctx.fillStyle = '#111';
-            for (let y = MEADOW_BOTTOM + 15; y < canvas.height; y += 40) {
-                ctx.fillRect(x + 6, y, 4, 4);
-            }
-            ctx.fillStyle = '#221109';
-        }
-
-        // Re-draw Meadow grass right top to cover shed under the meadow
-        ctx.fillStyle = '#6b9c2a';
-        ctx.fillRect(80, MEADOW_BOTTOM, canvas.width - 80, 15);
-        ctx.fillStyle = '#3e2610';
-        ctx.fillRect(80, MEADOW_BOTTOM + 15, canvas.width - 80, 15); // dirt base
-
-        // Basement Details
-        // Horizontal Pipe spanning full width
-        ctx.fillStyle = '#222';
-        ctx.fillRect(0, 470, canvas.width, 12);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(0, 472, canvas.width, 4);
 
         // Sebastian the Cat (Sleeping Easter Egg)
         let catX = 350;
@@ -2130,54 +2046,6 @@
         ctx.lineTo(catX + 6, catY - 20);
         ctx.lineTo(catX - 10, catY - 14);
         ctx.fill();
-
-        // Cardboard Box (The Joke: "It was just a cardboard box.")
-
-        // Vertical pipe
-        ctx.fillStyle = '#222';
-        ctx.fillRect(300, 470, 16, canvas.height - 470);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(304, 470, 4, canvas.height - 470);
-
-        // Underground grating / window
-        ctx.fillStyle = '#111';
-        ctx.fillRect(150, 445, 60, 25);
-        ctx.fillStyle = '#555';
-        for (let i = 0; i < 4; i++) ctx.fillRect(150 + i * 15 + 5, 445, 4, 25);
-
-
-
-
-        // Right Hole (Market) Poster
-
-        // Egg Sell Poster on wall
-        ctx.save();
-        ctx.translate(canvas.width - 40, 510); // Lowered even further
-        ctx.rotate(-0.08); // Slightly rotated left
-        ctx.scale(0.75, 0.75); // 25% smaller
-        // Paper
-        ctx.fillStyle = '#fdf5e6';
-        ctx.fillRect(-35, -25, 70, 60);
-        // Pin/Tape
-        ctx.fillStyle = '#c0392b';
-        ctx.beginPath(); ctx.arc(0, -20, 3, 0, Math.PI * 2); ctx.fill();
-        // Text
-        ctx.fillStyle = '#2c3e50';
-        ctx.font = '10px "Press Start 2P"';
-        ctx.textAlign = 'center';
-        ctx.fillText("EGG", 0, -2);
-        ctx.fillText("SELL", 0, 12);
-        ctx.font = '20px sans-serif';
-        ctx.fillText("⬇", 0, 30);
-        ctx.restore();
-
-        // Lower Concrete Foundation connecting all
-        ctx.fillStyle = '#1e1a17';
-        ctx.fillRect(0, UNDERGROUND_FLOOR_Y + 6, canvas.width, canvas.height - (UNDERGROUND_FLOOR_Y + 6));
-
-        // Dark dirt line below belt
-        ctx.fillStyle = '#120f0e';
-        ctx.fillRect(80, UNDERGROUND_FLOOR_Y + 6, canvas.width - 160, 4);
 
         if (state.hasTvAd) {
             let tvX = canvas.width - 220;
@@ -2372,110 +2240,25 @@
 
             ctx.rotate(e.angle || 0);
 
-            if (e.type === 'package') {
-                if (e.hasRibbon) {
-                    // Premium Black Box (25% bigger, width 20, height 15) resting exactly on floor +6
-                    ctx.fillStyle = '#111111';
-                    ctx.fillRect(-10, -9, 20, 15);
-
-                    // Crisp gold borders
-                    let gGradient = ctx.createLinearGradient(-10, -9, 10, 6);
-                    gGradient.addColorStop(0, '#f1c40f');
-                    gGradient.addColorStop(0.5, '#f39c12');
-                    gGradient.addColorStop(1, '#e67e22');
-
-                    ctx.strokeStyle = '#050505';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(-9.5, -8.5, 19, 14); // Inner detail
-
-                    // Fine gold stripe across
-                    ctx.fillStyle = gGradient;
-                    ctx.fillRect(-10, -2, 20, 1);
-
-                    // Gold geometric center/logo 
-                    ctx.beginPath();
-                    ctx.moveTo(0, -4.5);
-                    ctx.lineTo(3.5, -1.5);
-                    ctx.lineTo(0, 1.5);
-                    ctx.lineTo(-3.5, -1.5);
-                    ctx.fill();
-
-                    // Subtle shine/gloss on the top
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                    ctx.fillRect(-10, -9, 20, 5);
-                } else {
-                    ctx.fillStyle = '#d2b48c';
-                    ctx.fillRect(-8, -6, 16, 12);
-                    ctx.strokeStyle = '#8b4513';
-                    ctx.beginPath();
-                    ctx.moveTo(-8, 0);
-                    ctx.lineTo(8, 0);
-                    ctx.stroke();
-                }
-            } else {
-                // Base colors
-                if (e.type === 'golden') {
-                    ctx.fillStyle = '#ffd700';
-                } else if (e.type === 'premium') {
-                    ctx.fillStyle = '#ffffff';
-                } else {
-                    if (e.washed && e.x >= 220 && e.x <= 290) {
-                        let washRatio = (e.x - 220) / 70;
-                        let rgb = Math.floor(211 + (255 - 211) * washRatio);
-                        ctx.fillStyle = `rgb(${rgb}, ${rgb}, ${rgb})`;
-                    } else {
-                        ctx.fillStyle = e.washed ? '#ffffff' : '#d3d3d3';
-                    }
-                }
-
-                // Pointy Egg Shape via Bezier Curves
-                ctx.beginPath();
-                ctx.moveTo(0, -7);
-                ctx.bezierCurveTo(4, -7, 5, 0, 5, 3);
-                ctx.bezierCurveTo(5, 7, -5, 7, -5, 3);
-                ctx.bezierCurveTo(-5, 0, -4, -7, 0, -7);
-                ctx.fill();
-
-                // Premium dots
-                if (e.type === 'premium') {
-                    ctx.fillStyle = '#222';
-                    ctx.fillRect(-2, -3, 2, 2);
-                    ctx.fillRect(1, 1, 2, 1);
-                    ctx.fillRect(-1, 3, 2, 2);
-                    ctx.fillRect(2, -2, 1, 2);
-                    ctx.fillRect(-3, 1, 2, 1);
-                }
-
-                // Washed shine effect fade in
-                if (e.washed) {
-                    let shineAlpha = 0.9;
-                    if (e.x >= 220 && e.x <= 290) {
-                        shineAlpha = 0.9 * ((e.x - 220) / 70);
-                    }
-                    ctx.fillStyle = `rgba(200, 240, 255, ${shineAlpha})`;
-                    ctx.beginPath();
-                    ctx.ellipse(-2, -2, 1.5, 3, Math.PI / 4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                if (e.stamped) {
-                    ctx.save();
-                    ctx.translate(0, 1.5);
-                    ctx.rotate(-Math.PI / 10);
-
-                    ctx.strokeStyle = '#c0392b'; // Quality Red outer
-                    ctx.lineWidth = 0.6;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
-                    ctx.stroke();
-
-                    ctx.fillStyle = '#c0392b'; // "Q" symbol inside
-                    ctx.font = 'bold 3.5px sans-serif';
-                    ctx.fillText('Q', -1.3, 1.3);
-
-                    ctx.restore();
-                }
+            if (!eggsSpriteSheet.complete || eggsSpriteSheet.naturalWidth === 0) {
+                ctx.restore();
+                return;
             }
+
+            let row = 0;
+            if (e.type === 'package') {
+                row = e.hasRibbon ? 10 : 9;
+            } else {
+                let base = (e.type === 'golden') ? 6 : ((e.type === 'premium') ? 3 : 0);
+                if (e.washed && e.stamped) row = base + 2;
+                else if (e.washed) row = base + 1;
+                else row = base;
+            }
+
+            // Center anchored at (0,0) matching the physics body.
+            // The sprite generator baked eggs 6px up inside the 32x32 cell, so compensate with -10 instead of -16.
+            ctx.drawImage(eggsSpriteSheet, 0, row * 32, 32, 32, -16, -10, 32, 32);
+
             ctx.restore();
         };
 
@@ -2483,8 +2266,15 @@
             renderChicken(ctx, c);
         };
 
-        let drawChick = (ch) => { renderChick(ctx, ch); };
-        let drawRooster = (r) => { renderRooster(ctx, r); };
+        let drawChick = (ch) => {
+            renderChick(ctx, ch);
+        };
+        let drawRooster = (r) => {
+            renderRooster(ctx, r);
+        };
+        let drawTombstone = (t) => {
+            renderTombstone(t);
+        };
 
         if (!window.pass1Queue) { window.pass1Queue = []; window.pass2Queue = []; }
         let pass1 = window.pass1Queue; pass1.length = 0;
@@ -2494,20 +2284,25 @@
         let mWLvl1 = state.maxWaterLevel || 0; let waterBaseY = 180 + (40 + mWLvl1 * 16) / 2 + 18;
         let mFLvl1 = state.maxFoodLevel || 0; let foodBaseY = 180 + (40 + mFLvl1 * 16) / 2 + 18;
 
-        for (let i = 0; i < tombstonesArr.length; i++) { let t = tombstonesArr[i]; t.rType = 4; let b = t.x < 400 ? waterBaseY : foodBaseY; if (t.y < b) pass1.push(t); else pass2.push(t); }
-        for (let i = 0; i < chickensArr.length; i++) { let c = chickensArr[i]; c.rType = 1; let b = c.x < 400 ? waterBaseY : foodBaseY; if (c.y < b) pass1.push(c); else pass2.push(c); }
-        for (let i = 0; i < chicksArr.length; i++) { let ch = chicksArr[i]; ch.rType = 2; let b = ch.x < 400 ? waterBaseY : foodBaseY; if (ch.y < b) pass1.push(ch); else pass2.push(ch); }
-        for (let i = 0; i < roostersArr.length; i++) { let r = roostersArr[i]; r.rType = 3; let b = r.x < 400 ? waterBaseY : foodBaseY; if (r.y < b) pass1.push(r); else pass2.push(r); }
-        for (let i = 0; i < eggsArr.length; i++) { let e = eggsArr[i]; if (!e.collected && !e.isBeingDragged) { e.rType = 0; let b = e.x < 400 ? waterBaseY : foodBaseY; if (e.y < b) pass1.push(e); else pass2.push(e); } }
+        // Distribute tombstones
+        for (let i = 0; i < tombstonesArr.length; i++) {
+            let t = tombstonesArr[i]; t.rType = 4; t._depthY = t.y + 12;
+            let b = t.x < 400 ? waterBaseY : foodBaseY;
+            if (t._depthY < b) pass1.push(t); else pass2.push(t);
+        }
+        for (let i = 0; i < chickensArr.length; i++) { let c = chickensArr[i]; c.rType = 1; c._depthY = c.y + 19; let b = c.x < 400 ? waterBaseY : foodBaseY; if (c._depthY < b) pass1.push(c); else pass2.push(c); }
+        for (let i = 0; i < chicksArr.length; i++) { let ch = chicksArr[i]; ch.rType = 2; ch._depthY = ch.y + 6; let b = ch.x < 400 ? waterBaseY : foodBaseY; if (ch._depthY < b) pass1.push(ch); else pass2.push(ch); }
+        for (let i = 0; i < roostersArr.length; i++) { let r = roostersArr[i]; r.rType = 3; r._depthY = r.y - 3; let b = r.x < 400 ? waterBaseY : foodBaseY; if (r._depthY < b) pass1.push(r); else pass2.push(r); }
+        for (let i = 0; i < eggsArr.length; i++) { let e = eggsArr[i]; if (!e.collected && !e.isBeingDragged) { e.rType = 0; e._depthY = e.y; let b = e.x < 400 ? waterBaseY : foodBaseY; if (e._depthY < b) pass1.push(e); else pass2.push(e); } }
 
-        pass1.sort((a, b) => a.y - b.y);
+        pass1.sort((a, b) => a._depthY - b._depthY);
         for (let i = 0; i < pass1.length; i++) {
             let o = pass1[i];
             if (o.rType === 1) drawChicken(o);
             else if (o.rType === 0) drawEgg(o);
             else if (o.rType === 2) drawChick(o);
             else if (o.rType === 3) drawRooster(o);
-            else if (o.rType === 4) renderTombstone(o);
+            else if (o.rType === 4) drawTombstone(o);
         }
 
         // Draw Water Trough (LEFT)
@@ -2664,7 +2459,7 @@
         // Boombox (Radio Cassette)
         if (state.musicLevel > 0) {
             let rx = canvas.width / 2 - 18, ry = 340, rw = 36, rh = 20;
-            ctx.fillStyle = window.isMusicMuted ? '#555' : '#3498db';
+            ctx.fillStyle = (window.isMusicMuted || window.isBgmMuted) ? '#555' : '#3498db';
             ctx.fillRect(rx, ry, rw, rh);
             ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(rx + 6, ry); ctx.lineTo(rx + 6, ry - 6); ctx.lineTo(rx + rw - 6, ry - 6); ctx.lineTo(rx + rw - 6, ry); ctx.stroke();
@@ -2673,7 +2468,7 @@
             ctx.beginPath(); ctx.arc(rx + rw - 10, ry + 10, 6, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#fff';
             ctx.fillRect(rx + 16, ry + 4, 4, 3);
-            if (!window.isMusicMuted && (Date.now() % 1000 < 500)) {
+            if (!window.isMusicMuted && !window.isBgmMuted && (Date.now() % 1000 < 500)) {
                 ctx.fillStyle = '#f1c40f'; ctx.font = '10px sans-serif';
                 ctx.fillText("♫", rx + 5, ry - 10);
                 ctx.fillText("♪", rx + 25, ry - 15);
@@ -3103,62 +2898,50 @@
             ctx.save();
             ctx.translate(t.x + ox, t.y + oy);
 
-            // Dirt mound base
-            ctx.fillStyle = '#4a2e15';
-            ctx.beginPath();
-            ctx.ellipse(0, 8, 14, 4, 0, 0, Math.PI * 2);
-            ctx.fill();
+            // Tombstone face setup (if we don't use original render method)
+            if (typeof tombstoneSpriteSheet !== 'undefined' && tombstoneSpriteSheet.complete && tombstoneSpriteSheet.naturalWidth > 0) {
+                ctx.drawImage(tombstoneSpriteSheet, -16, -20, 32, 32);
+            } else {
+                // Fallback geometry 
+                ctx.fillStyle = '#808080';
+                ctx.fillRect(-8, -9, 16, 17);
+                ctx.beginPath();
+                ctx.arc(0, -9, 8, Math.PI, 0);
+                ctx.fill();
 
-            // Tombstone shadow/back layer
-            ctx.fillStyle = '#444';
-            ctx.fillRect(-10, -10, 20, 18);
-            ctx.beginPath();
-            ctx.arc(0, -10, 10, Math.PI, 0);
-            ctx.fill();
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-5, -12);
+                ctx.lineTo(-2, -9);
+                ctx.lineTo(-4, -6);
+                ctx.stroke();
 
-            // Tombstone face (lighter gray)
-            ctx.fillStyle = '#808080';
-            ctx.fillRect(-8, -9, 16, 17);
-            ctx.beginPath();
-            ctx.arc(0, -9, 8, Math.PI, 0);
-            ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(6, 4);
+                ctx.lineTo(3, 8);
+                ctx.stroke();
 
-            // Crack / weather detail
-            ctx.strokeStyle = '#555';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(-5, -12);
-            ctx.lineTo(-2, -9);
-            ctx.lineTo(-4, -6);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(6, 4);
-            ctx.lineTo(3, 8);
-            ctx.stroke();
-
-            // RIP Text Etched
-            ctx.font = '6px "Press Start 2P"';
-            ctx.textAlign = 'center';
-
-            ctx.fillStyle = '#333';
-            ctx.fillText("RIP", 0, -1);
-
-            ctx.fillStyle = '#a0a0a0'; // highlight
-            ctx.fillText("RIP", 0, -2);
+                ctx.font = '6px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#333';
+                ctx.fillText("RIP", 0, -1);
+                ctx.fillStyle = '#a0a0a0';
+                ctx.fillText("RIP", 0, -2);
+            }
 
             ctx.restore();
         };
 
         // Z-Index Pass 2: Foreground entities
-        pass2.sort((a, b) => a.y - b.y);
+        pass2.sort((a, b) => a._depthY - b._depthY);
         for (let i = 0; i < pass2.length; i++) {
             let o = pass2[i];
             if (o.rType === 1) drawChicken(o);
             else if (o.rType === 0) drawEgg(o);
             else if (o.rType === 2) drawChick(o);
             else if (o.rType === 3) drawRooster(o);
-            else if (o.rType === 4) renderTombstone(o);
+            else if (o.rType === 4) drawTombstone(o);
         }
 
 
@@ -3243,45 +3026,49 @@
 
         // Particles
         particlesArr.forEach(p => {
+            let isHeart = p.text.includes('❤') || p.text.includes('❤️');
+
             if (p.color) {
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
-                ctx.fillStyle = p.color;
-                ctx.font = 'bold 8px "Press Start 2P", monospace';
-
-                // Align right if it spawns too close to the right edge (to prevent clipping text)
-                ctx.textAlign = p.x > canvas.width - 80 ? 'right' : 'center';
 
                 // Offset Y significantly so it doesn't block the box behind it
                 let renderY = p.y - 35 - (4 - p.life) * 10;
 
-                // Dark Outline for readability (skip emojis)
-                if (!p.text.includes('❤') && !p.text.includes('❤️')) {
+                if (isHeart && heartSpriteSheet.complete && heartSpriteSheet.naturalWidth > 0) {
+                    ctx.drawImage(heartSpriteSheet, p.x - 4, renderY - 4, 8, 8);
+                } else {
+                    ctx.fillStyle = p.color;
+                    ctx.font = 'bold 8px "Press Start 2P", monospace';
+                    ctx.textAlign = p.x > canvas.width - 80 ? 'right' : 'center';
+
+                    // Dark Outline for readability
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 2.5;
                     ctx.strokeText(p.text, p.x, renderY);
+                    ctx.fillText(p.text, p.x, renderY); // Float up
                 }
-
-                ctx.fillText(p.text, p.x, renderY); // Float up
                 ctx.restore();
             } else {
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px sans-serif';
-                ctx.textAlign = p.x > canvas.width - 80 ? 'right' : 'center';
 
                 let renderX = p.x - 10;
                 let renderY = p.y - 45;
 
-                // Dark Outline for readability (skip emojis)
-                if (!p.text.includes('❤') && !p.text.includes('❤️')) {
+                if (isHeart && heartSpriteSheet.complete && heartSpriteSheet.naturalWidth > 0) {
+                    ctx.drawImage(heartSpriteSheet, renderX - 4, renderY - 4, 8, 8);
+                } else {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = p.x > canvas.width - 80 ? 'right' : 'center';
+
+                    // Dark Outline for readability
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 2.5;
                     ctx.strokeText(p.text, renderX, renderY);
+                    ctx.fillText(p.text, renderX, renderY);
                 }
-
-                ctx.fillText(p.text, renderX, renderY);
                 ctx.restore();
             }
         });
@@ -3291,7 +3078,7 @@
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.font = '8px "Press Start 2P"';
-        ctx.fillText(`v1.1 | ${currentFps} FPS`, canvas.width - 5, canvas.height - 5);
+        ctx.fillText(`v1.1.1 | ${currentFps} FPS`, canvas.width - 5, canvas.height - 5);
 
         // Speedrun Timer Text
         if (state.isSpeedrunMode) {
@@ -3456,7 +3243,7 @@
         }
         if (state.hasRetired || retireFadeTimer >= 0 || cinematicPhase > 0) return;
         updateCursor(true);
-        if (state.hasPetting && sfxCatPurr.paused) {
+        if (state.hasPetting && sfxCatPurr.paused && !window.isMusicMuted) {
             sfxCatPurr.volume = 0;
             sfxCatPurr.play().catch(e => { });
         }
@@ -3468,7 +3255,7 @@
         if (state.musicLevel > 0) {
             let rx = canvas.width / 2 - 18, ry = 340, rw = 36, rh = 20;
             if (pos.x >= rx && pos.x <= rx + rw && pos.y >= ry && pos.y <= ry + rh) {
-                window.isMusicMuted = !window.isMusicMuted;
+                window.isBgmMuted = !window.isBgmMuted;
                 updateBGM();
                 return;
             }
@@ -3513,7 +3300,6 @@
                 t.shakeTimer = 0.2; // 200ms of shaking
                 if (t.hp <= 0) {
                     tombstonesArr.splice(i, 1);
-                    for (let j = 0; j < 5; j++) particlesArr.push({ x: t.x + (Math.random() - 0.5) * 20, y: t.y + (Math.random() - 0.5) * 20, text: '•', life: 0.5 + Math.random() });
                 }
                 return;
             }
@@ -3574,14 +3360,15 @@
                         if (c.action === 'roam' && !c.dead) {
                             let cdx = pos.x - c.x;
                             let cdy = pos.y - (c.y - 4);
-                            let isOver = Math.abs(cdx) < 24 && Math.abs(cdy) < 24;
+                            let isOver = Math.abs(cdx) < 34 && Math.abs(cdy) < 34;
 
                             if (isOver && !c.wasHovered) {
                                 c.wasHovered = true;
-                                c.eggTimer -= 1; // 1 second reduction per pass
+                                c.isHovered = true;
+                                c.eggTimer -= 1;
                                 c.squishTimer = 0.1;
                                 playSound(randomCokSounds[Math.floor(Math.random() * randomCokSounds.length)], 0.1, 100 + (Math.random() - 0.5) * 50);
-                                particlesArr.push({ x: c.x + (Math.random() - 0.5) * 10, y: c.y, text: '❤', life: 1.0, color: '#ff69b4' });
+                                particlesArr.push({ x: c.x + (Math.random() - 0.5) * 10, y: c.y + 35, text: '❤', life: 1.0, color: '#ff69b4' });
 
                                 if (c.eggTimer <= 0) {
                                     layEgg(c.x, c.y, c.direction);
@@ -3609,9 +3396,8 @@
                             r.wasHovered = true;
                             if (r.mateTimer > 0) {
                                 r.mateTimer -= 2;
-                                r.jumpTimer = 0.3; // Hop enthusiastically instead of squishing
                                 playSound(randomCokSounds[Math.floor(Math.random() * randomCokSounds.length)], 0.15, 80 + (Math.random() - 0.5) * 40);
-                                particlesArr.push({ x: r.x + (Math.random() - 0.5) * 10, y: r.y - 15, text: '❤', life: 1.0, color: '#e91e63' });
+                                particlesArr.push({ x: r.x + (Math.random() - 0.5) * 10, y: r.y + 40, text: '❤', life: 1.0, color: '#e91e63' });
                             }
                         } else if (!isOver && r.wasHovered) {
                             r.wasHovered = false;
@@ -3688,21 +3474,29 @@
 
     document.getElementById('wipe-confirm').addEventListener('click', async () => {
         document.getElementById('wipe-confirm-overlay').style.display = 'none';
-        if (pendingModeAction) {
-            pendingModeAction();
-            pendingModeAction = null;
-            return;
-        }
+
+        window.isWiping = true;
+        // DESTRUCCIÓN EN MEMORIA
+        state = { money: 0, chickens: 0 };
+        chickensArr = [];
+        window.isMusicMuted = false;
+
         localStorage.removeItem('chickenIdleSave');
         localStorage.removeItem('chickenIdleSpeedrunSubmitted');
+
+        if (pendingModeAction) {
+            await pendingModeAction();
+            pendingModeAction = null;
+        }
+
         if (typeof GAME_MARKET !== 'undefined' && GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
             try { await window.CrazyGames.SDK.data.removeItem('chickenIdleSave'); } catch (e) { }
             try { await window.CrazyGames.SDK.data.setItem('chickenIdleSave', ''); } catch (e) { }
             try { if (window.CrazyGames.SDK.data.clear) await window.CrazyGames.SDK.data.clear(); } catch (e) { }
-            // Ensure TCP packet transmission finishes before DOM drops the execution context
             await new Promise(r => setTimeout(r, 600));
         }
-        location.reload();
+
+        window.location.href = window.location.href.split('?')[0];
     });
 
     let dbgBtn = document.getElementById('debug-btn');
@@ -4083,7 +3877,7 @@
         });
 
         const steamWishBtn = document.getElementById('steam-btn');
-        if (steamWishBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds")) {
+        if (steamWishBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds" || GAME_MARKET === "crazygames")) {
             if (state.hasRetired) {
                 let topbar = document.getElementById('topbar');
                 if (topbar && steamWishBtn.parentNode !== topbar) {
@@ -4100,7 +3894,7 @@
     }
 
     function updateCinematic(dt) {
-        if (bgmTheme.paused && !window.isMusicMuted) {
+        if (bgmTheme.paused && !window.isMusicMuted && !window.isBgmMuted) {
             bgmTheme.volume = 0.5;
             bgmTheme.play().catch(e => { });
         }
@@ -4530,6 +4324,7 @@
     }
 
     function saveState() {
+        if (window.isWiping) return;
         let cleanRoosters = roostersArr.map(r => {
             let copy = { ...r };
             copy.targetChicken = null;
@@ -4546,7 +4341,13 @@
             tombstonesArr: tombstonesArr
         };
         let saveString = JSON.stringify(saveData);
-        localStorage.setItem('chickenIdleSave', saveString);
+
+        try {
+            localStorage.setItem('chickenIdleSave', saveString);
+        } catch (e) {
+            console.warn("Storage quota exceeded or saving blocked. Continuing game without saving:", e);
+        }
+
         if (GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
             try { window.CrazyGames.SDK.data.setItem('chickenIdleSave', saveString); } catch (e) { }
         }
@@ -4720,8 +4521,9 @@
         let cp = document.getElementById('ui-chicken-icon');
         if (cp) {
             let cx = cp.getContext('2d');
-            cx.translate(20, 26);
-            cx.scale(1.2, 1.2);
+            cx.clearRect(0, 0, 40, 40);
+            cx.translate(20, 18);
+            cx.scale(1.0, 1.0);
             renderChicken(cx, { x: 0, y: 0, velX: 0, velY: 0, direction: 1, color: '#ffffff', squishTimer: 0, isGrey: false });
             cx.setTransform(1, 0, 0, 1, 0, 0);
         }
@@ -4730,6 +4532,7 @@
     // CrazyGames SDK Initialization, Cloud Save & Tracking
     window.isCrazyGamesInitialized = false;
 
+    window.forceAd = function () { triggerMidgameAd("CONSOLD AD..."); };
     function triggerMidgameAd(subtitleText) {
         window.isAdPaused = true;
         let overlay = document.getElementById('ad-overlay');
@@ -4742,43 +4545,36 @@
 
         overlay.style.display = 'flex';
         subtitle.innerText = subtitleText;
+        title.innerText = "Ad Loading...";
 
-        let countdown = 3;
-        title.innerText = countdown + "...";
-
-        let interval = setInterval(() => {
-            countdown--;
-            if (countdown > 0) {
-                title.innerText = countdown + "...";
-            } else {
-                clearInterval(interval);
+        const callbacks = {
+            adFinished: () => {
+                window.isAdPaused = false;
                 overlay.style.display = 'none';
-
-                const callbacks = {
-                    adFinished: () => {
-                        window.isAdPaused = false;
-                        updateBGM();
-                    },
-                    adError: (error) => {
-                        window.isAdPaused = false;
-                        console.warn("CrazyGames Ad error", error);
-                        updateBGM();
-                    },
-                    adStarted: () => { console.log("CrazyGames Ad started"); }
-                };
-
-                if (window.CrazyGames && window.CrazyGames.SDK) {
-                    try {
-                        window.CrazyGames.SDK.ad.requestAd('midgame', callbacks);
-                    } catch (e) {
-                        callbacks.adError(e);
-                    }
-                } else {
-                    window.isAdPaused = false;
-                    updateBGM();
-                }
+                updateBGM();
+            },
+            adError: (error) => {
+                window.isAdPaused = false;
+                overlay.style.display = 'none';
+                console.warn("CrazyGames Ad error", error);
+                updateBGM();
+            },
+            adStarted: () => {
+                console.log("CrazyGames Ad started");
+                title.innerText = "Playing Ad...";
             }
-        }, 1000);
+        };
+
+        if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.ad) {
+            try {
+                window.CrazyGames.SDK.ad.requestAd('midgame', callbacks);
+            } catch (e) {
+                callbacks.adError(e);
+            }
+        } else {
+            console.warn("CrazyGames SDK ad module not found.");
+            callbacks.adError("SDK Missing");
+        }
     }
 
     if (GAME_MARKET === "crazygames" && window.CrazyGames) {
@@ -4907,7 +4703,7 @@
         resumeBtn.addEventListener('click', () => {
             window.gamePaused = false;
             if (pauseOverlay) pauseOverlay.style.display = 'none';
-            if (!window.isMusicMuted && state.musicLevel > 0 && !window.isOrientationPaused) {
+            if (!window.isMusicMuted && !window.isBgmMuted && state.musicLevel > 0 && !window.isOrientationPaused) {
                 bgmTheme.play().catch(e => { });
                 bgmTheme.play().catch(e => { });
             }
@@ -5005,14 +4801,8 @@
     if (speedrunStartBtn) {
         speedrunStartBtn.addEventListener('click', () => {
             if (rankingOverlay) rankingOverlay.style.display = 'none';
-            pendingModeAction = () => {
+            pendingModeAction = async () => {
                 localStorage.setItem('chickenIdleSpeedrun', 'true');
-                localStorage.removeItem('chickenIdleSave');
-                localStorage.removeItem('chickenIdleSpeedrunSubmitted');
-                if (GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
-                    try { window.CrazyGames.SDK.data.removeItem('chickenIdleSave'); } catch (e) { }
-                }
-                location.reload();
             };
             document.getElementById('wipe-confirm-overlay').style.display = 'flex';
         });
@@ -5020,14 +4810,8 @@
     if (normalModeBtn) {
         normalModeBtn.addEventListener('click', () => {
             if (rankingOverlay) rankingOverlay.style.display = 'none';
-            pendingModeAction = () => {
+            pendingModeAction = async () => {
                 localStorage.removeItem('chickenIdleSpeedrun');
-                localStorage.removeItem('chickenIdleSave');
-                localStorage.removeItem('chickenIdleSpeedrunSubmitted');
-                if (GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
-                    try { window.CrazyGames.SDK.data.removeItem('chickenIdleSave'); } catch (e) { }
-                }
-                location.reload();
             };
             document.getElementById('wipe-confirm-overlay').style.display = 'flex';
         });
@@ -5156,9 +4940,11 @@
 
     // Logic for Steam Wishlist Button
     const steamWishlistBtn = document.getElementById('steam-btn');
-    if (steamWishlistBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds")) {
+    if (steamWishlistBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds" || GAME_MARKET === "crazygames")) {
         steamWishlistBtn.href = `https://store.steampowered.com/app/4563810/The_MachinEGG/?utm_source=G1_${GAME_MARKET.toUpperCase()}`;
-        steamWishlistBtn.style.display = 'block';
+        if (GAME_MARKET !== "crazygames") {
+            steamWishlistBtn.style.display = 'block';
+        }
     }
     // One-time check for legacy 1.0.5 players
     if (!localStorage.getItem('legacyCheckDone')) {
@@ -5222,6 +5008,18 @@
             if (rankBtnInit) rankBtnInit.style.display = 'inline-block';
             if (wipeBtnInit) wipeBtnInit.style.display = 'none';
             localStorage.setItem('chickenIdleBeaten', 'true');
+        }
+        if (e.key.toLowerCase() === 'x') {
+            if (confirm("WARNING! Are you sure you want to WIPE your save and play NORMAL MODE?")) {
+                localStorage.setItem('chickenIdleSpeedrun', 'false');
+                document.getElementById('wipe-confirm').click();
+            }
+        }
+        if (e.key.toLowerCase() === 'y') {
+            if (confirm("WARNING! Are you sure you want to WIPE your save and play SPEEDRUN MODE?")) {
+                localStorage.setItem('chickenIdleSpeedrun', 'true');
+                document.getElementById('wipe-confirm').click();
+            }
         }
     });
 
