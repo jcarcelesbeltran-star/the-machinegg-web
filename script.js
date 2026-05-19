@@ -1,16 +1,56 @@
 (() => {
-    const GAME_MARKET = "galaxy"; // "itchio" o "crazygames" o "galaxy" o "newgrounds"
+    const GAME_MARKET = "galaxy"; // "itchio" o "galaxy" o "newgrounds" o "googleplay"
     let _totalMoneyEarned = 0;
     let _totalMoneySpent = 0;
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    const chickenSpriteSheet = new Image();
-    chickenSpriteSheet.onload = () => {
+    const chickenSpriteSheets = [];
+    const baseChickenSprite = new Image();
+    baseChickenSprite.onload = () => {
+        const CHICKEN_COLORS = ['#ffffff', '#dcc5a4', '#8b5a2b', '#444444'];
+        
+        CHICKEN_COLORS.forEach((hex, idx) => {
+            if (idx === 0) {
+                chickenSpriteSheets[0] = baseChickenSprite;
+                return;
+            }
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = baseChickenSprite.width;
+            tempCanvas.height = baseChickenSprite.height;
+            const tCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+            tCtx.drawImage(baseChickenSprite, 0, 0);
+            
+            const imgData = tCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imgData.data;
+            
+            const rT = parseInt(hex.substr(1,2), 16);
+            const gT = parseInt(hex.substr(3,2), 16);
+            const bT = parseInt(hex.substr(5,2), 16);
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                const a = data[i+3];
+                
+                if (a > 0) {
+                    const isGrayscale = Math.abs(r - g) < 25 && Math.abs(g - b) < 25 && Math.abs(r - b) < 25;
+                    if (isGrayscale) {
+                        data[i]   = (r * rT) / 255;
+                        data[i+1] = (g * gT) / 255;
+                        data[i+2] = (b * bT) / 255;
+                    }
+                }
+            }
+            tCtx.putImageData(imgData, 0, 0);
+            chickenSpriteSheets[idx] = tempCanvas;
+        });
+
         if (typeof drawUIIcons === 'function') drawUIIcons();
     };
-    chickenSpriteSheet.src = 'pixelart_design/chicken.png';
+    baseChickenSprite.src = 'data:image/png;base64,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';
 
     const eggSpriteSheet = new Image();
     eggSpriteSheet.src = 'pixelart_design/eggs.png';
@@ -28,7 +68,7 @@
     tombstoneSpriteSheet.src = 'pixelart_design/tombstone.png';
 
     const heartSpriteSheet = new Image();
-    heartSpriteSheet.src = 'pixelart_design/heath.png';
+    heartSpriteSheet.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA6SURBVChTY/z//z8DPsAEJhkZ/4MxDCDxQSReIyAm4AFEKPj/nxHKxgRAOYgJ2BRBxRBWICuCsxkYAEWtFQiE3/O4AAAAAElFTkSuQmCC';
 
     const eggsSpriteSheet = new Image();
     eggsSpriteSheet.src = 'pixelart_design/eggs.png';
@@ -57,11 +97,37 @@
     let lastSoundTimes = {};
     let activeVoices = {};
 
+    // Web Audio API setup (garantiza compatibilidad con Android WebView)
+    const _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const _audioBufferCache = {};
+
+    async function _loadAudioBuffer(src) {
+        if (_audioBufferCache[src]) return _audioBufferCache[src];
+        try {
+            const response = await fetch(src);
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = await _audioCtx.decodeAudioData(arrayBuffer);
+            _audioBufferCache[src] = buffer;
+            return buffer;
+        } catch(e) {
+            return null;
+        }
+    }
+
+    // Precargar todos los sonidos al inicio
+    const _allAudioSrcs = [
+        'audio/cok.wav','audio/cok1.wav','audio/cok2.wav','audio/cok3.wav',
+        'audio/egg.wav','audio/money.mp3','audio/muerte-nacimiento.wav',
+        'audio/death.wav','audio/ponerhuevo.wav','audio/catpurring.wav',
+        'audio/pop-buy.wav'
+    ];
+    _allAudioSrcs.forEach(src => _loadAudioBuffer(src));
+
     function playSound(audioObj, vol = 1.0, baseThrottleMs = 50, rndPitch = false) {
         if (!audioObj) return;
-        if (window.isMusicMuted) return; // Global mute guard - blocks ALL sounds
+        if (window.isMusicMuted) return;
 
-        let key = audioObj.src;
+        let key = audioObj.src || (audioObj instanceof HTMLAudioElement ? audioObj.src : '');
         let now = Date.now();
 
         // Auto-detect passive environmental sounds
@@ -79,37 +145,57 @@
         if (isPassive && chickenCount > 10) {
             throttleMs = baseThrottleMs * (1 + (chickenCount / 30));
         }
-
         if (lastSoundTimes[key] && now - lastSoundTimes[key] < throttleMs) return;
         lastSoundTimes[key] = now;
 
-        // 3. Logarithmic ducking (Caída de volumen suave y no agresiva)
+        // 3. Logarithmic ducking
         let finalVol = vol;
         if (isPassive && chickenCount > 20) {
             finalVol = vol / Math.pow(1 + (chickenCount / 100), 1.5);
         }
-
         finalVol = Math.max(0.01, Math.min(1.0, finalVol));
 
-        let clone = audioObj.cloneNode();
-        clone.volume = finalVol;
-        if (rndPitch) {
-            clone.preservesPitch = false;
-            clone.mozPreservesPitch = false;
-            clone.playbackRate = 0.8 + Math.random() * 0.6;
+        // Extraer la ruta relativa del src (puede ser URL completa o relativa)
+        let relSrc = key;
+        try { relSrc = new URL(key).pathname.replace(/^\//, ''); } catch(e) {}
+        // Quitar el segmento inicial si es una ruta absoluta del filesystem
+        relSrc = relSrc.replace(/^.*\/audio\//, 'audio/');
+
+        if (isPassive) activeVoices[key] = (activeVoices[key] || 0) + 1;
+
+        if (_audioCtx.state === 'suspended') {
+            _audioCtx.resume().catch(() => {});
         }
 
-        if (isPassive) {
-            activeVoices[key]++;
-            clone.onended = () => {
-                activeVoices[key] = Math.max(0, activeVoices[key] - 1);
-            };
-        }
+        _loadAudioBuffer(relSrc).then(buffer => {
+            if (!buffer) {
+                // Fallback a cloneNode si Web Audio falla
+                if (isPassive) activeVoices[key] = Math.max(0, (activeVoices[key] || 1) - 1);
+                let clone = audioObj.cloneNode();
+                clone.volume = finalVol;
+                clone.play().catch(() => {});
+                return;
+            }
+            const source = _audioCtx.createBufferSource();
+            source.buffer = buffer;
+            if (rndPitch) source.playbackRate.value = 0.8 + Math.random() * 0.6;
 
-        clone.play().catch(e => {
-            if (isPassive) activeVoices[key] = Math.max(0, activeVoices[key] - 1);
+            const gainNode = _audioCtx.createGain();
+            gainNode.gain.value = finalVol;
+            source.connect(gainNode);
+            gainNode.connect(_audioCtx.destination);
+            source.start(0);
+
+            if (isPassive) {
+                source.onended = () => {
+                    activeVoices[key] = Math.max(0, (activeVoices[key] || 1) - 1);
+                };
+            }
+        }).catch(() => {
+            if (isPassive) activeVoices[key] = Math.max(0, (activeVoices[key] || 1) - 1);
         });
     }
+
 
     window.isMusicMuted = false;
     window.isBgmMuted = false;
@@ -128,6 +214,43 @@
             bgmTheme.volume = 0.15;
             bgmTheme.play().catch(e => { });
         }
+    }, { once: true });
+
+    // Android WebView Audio Unlock: resume AudioContext on first touch
+    window.androidAudioUnlocked = false;
+    document.addEventListener('touchstart', function unlockAudio() {
+        if (window.androidAudioUnlocked) return;
+        window.androidAudioUnlocked = true;
+
+        // Create and immediately close a silent AudioContext to unlock audio
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const buf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.start(0);
+            ctx.resume().then(() => {
+                // Re-trigger all sounds after unlock
+                [sfxCok, sfxEgg, sfxMoney, sfxDeathBirth, sfxDeath, sfxLayEgg,
+                 sfxCatPurr, sfxPopBuy, sfxCok1, sfxCok2, sfxCok3, bgmTheme].forEach(a => {
+                    if (a) { a.load(); }
+                });
+                if (state.musicLevel > 0 && !window.isMusicMuted && !window.isBgmMuted) {
+                    bgmTheme.volume = 0.15;
+                    bgmTheme.play().catch(() => {});
+                }
+            });
+        } catch(e) {}
+
+        // Fullscreen immersive (Android WebView)
+        try {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.webkitRequestFullscreen) {
+                document.documentElement.webkitRequestFullscreen();
+            }
+        } catch(e) {}
     }, { once: true });
 
     const REFILL_TIERS = [50, 100, 250, 500, 1000];
@@ -395,16 +518,16 @@
         let pulse = Math.abs(Math.sin(Date.now() / 200)) * 2;
         ctx.translate(x, y + (isFlipped ? pulse + 10 : -pulse));
 
-        ctx.font = '8px "Press Start 2P"';
+        ctx.font = `${10 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
         let maxTw = 0;
         lines.forEach(l => {
             let w = ctx.measureText(l).width;
             if (w > maxTw) maxTw = w;
         });
 
-        let boxW = maxTw + 12;
-        let lineH = 12;
-        let padding = 6;
+        let boxW = maxTw + 16;
+        let lineH = 15;
+        let padding = 8;
         let boxH = (lines.length * lineH) + padding;
         let boxY = isFlipped ? 8 : -boxH - 2;
 
@@ -661,6 +784,13 @@
     function update(dt) {
         if (window.isAdPaused) return;
 
+        // AdMob Timer Logic
+        state.nextAdTime = state.nextAdTime || 120;
+        if (state.playTime >= state.nextAdTime) {
+            state.nextAdTime += 120; // Increment by 2 minutes para testing
+            triggerMidgameAd();
+        }
+
         // GC safety caps to prevent localStorage quota exceeded errors and mitigate FPS drops
         if (eggsArr.length > 1500) eggsArr.splice(0, eggsArr.length - 1500);
         if (tombstonesArr.length > 300) tombstonesArr.splice(0, tombstonesArr.length - 300);
@@ -672,58 +802,109 @@
                 // Trigger the actual cinematic now
                 state.hasRetired = true;
                 localStorage.setItem('chickenIdleBeaten', 'true');
+                let pbKey = 'pb_vanilla';
+                if (state.isSpeedrunMode) {
+                    localStorage.setItem('chickenIdleBeatenSpeedrun', 'true');
+                    pbKey = 'pb_speedrun';
+                } else if (localStorage.getItem('activeChallenge') === 'adam') {
+                    localStorage.setItem('chickenIdleBeatenAdam', 'true');
+                    pbKey = 'pb_adam';
+                } else if (localStorage.getItem('activeChallenge') === 'manual') {
+                    localStorage.setItem('chickenIdleBeatenManual', 'true');
+                    pbKey = 'pb_manual';
+                } else {
+                    localStorage.setItem('chickenIdleBeatenVanilla', 'true');
+                }
+                let currentPB = parseFloat(localStorage.getItem(pbKey) || 'Infinity');
+                if (state.playTime < currentPB) {
+                    localStorage.setItem(pbKey, state.playTime.toString());
+                }
                 const rankBtnTemp = document.getElementById('ranking-btn');
                 const wipeBtnTemp = document.getElementById('wipe-btn');
-                if (rankBtnTemp) rankBtnTemp.style.display = state.isSpeedrunMode ? 'flex' : 'none';
+                if (rankBtnTemp) rankBtnTemp.style.display = 'inline-block';
                 if (wipeBtnTemp) wipeBtnTemp.style.display = 'none';
                 document.getElementById('shop').style.display = 'none';
                 canvas.width = 1140;
-                eggsArr = []; chicksArr = []; roostersArr = []; tombstonesArr = []; particlesArr = []; draggedEggs = [];
+                canvas.style.aspectRatio = "1140 / 650";
+                chickensArr = []; eggsArr = []; chicksArr = []; roostersArr = []; tombstonesArr = []; particlesArr = []; draggedEggs = [];
                 let oldChickensNum = state.chickens;
-                let activeMatrix = THE_END_MATRIX;
-                if (state.isSpeedrunMode) {
-                    let mins = Math.floor((state.playTime || 0) / 60);
-                    let secs = Math.floor((state.playTime || 0) % 60);
-                    if (mins > 99) { mins = 99; secs = 59; }
-                    let timeLine = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-                    activeMatrix = buildTextMatrix([timeLine]);
-                }
-                let countX = 0;
-                activeMatrix.forEach(r => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') countX++; });
-                chickensArr = [];
-                for (let i = 0; i < countX; i++) {
-                    chickensArr.push({
-                        x: -200 - (Math.random() * 800),
-                        y: 60 + Math.random() * (canvas.height - 120),
-                        targetX: 0, targetY: 0,
-                        velX: 80 + Math.random() * 40,
-                        velY: (Math.random() - 0.5) * 5,
-                        direction: 1, action: 'roam',
-                        color: Math.random() < 0.5 ? '#ffffff' : ['#dcc5a4', '#8b5a2b', '#444444'][Math.floor(Math.random() * 3)],
-                        scale: state.isSpeedrunMode ? 2.5 : 1.0
-                    });
-                }
-                state.chickens = oldChickensNum;
-                let gridSpacing = state.isSpeedrunMode ? 48 : 16;
-                let minC = 9999, maxC = -1;
-                activeMatrix.forEach(r => { for (let c = 0; c < r.length; c++) { if (r[c] === 'X') { if (c < minC) minC = c; if (c > maxC) maxC = c; } } });
-                let trueCols = (maxC - minC);
-                let chickenW = state.isSpeedrunMode ? 50 : 20;
-                let totalVisW = (trueCols * gridSpacing) + chickenW;
-                let visualStartX = Math.round((canvas.width - totalVisW) / 2) + (state.isSpeedrunMode ? 25 : 0);
-                let startX = visualStartX - (minC * gridSpacing);
-                let startY = state.isSpeedrunMode ? 220 : 173;
-                let chickenIdx = 0;
-                for (let r = 0; r < activeMatrix.length; r++) {
-                    for (let c = 0; c < activeMatrix[r].length; c++) {
-                        if (activeMatrix[r][c] === 'X' && chickenIdx < chickensArr.length) {
-                            chickensArr[chickenIdx].targetX = startX + (c * gridSpacing);
-                            chickensArr[chickenIdx].targetY = startY + (r * gridSpacing);
-                            chickenIdx++;
+                if (state.activeChallenge === 'adam' || state.activeChallenge === 'manual') {
+                    cinematicPhase = 5;
+                    cinematicTimer = 0;
+                    if (state.activeChallenge === 'adam') {
+                        window._adamAct = 'run';
+                        window._adamActTimer = 0;
+                        window._dadKnockedDownTimer = 0;
+                        for (let i = 0; i < 5; i++) {
+                            let r = createRooster();
+                            r.x = -120 - Math.random() * 30;
+                            r.y = 120 + Math.random() * 240;
+                            r.velX = 260 + Math.random() * 60;
+                            if (i === 4) {
+                                r.isDad = true;
+                                r.x = -120;
+                                r.y = 320;
+                                r.velX = 160;
+                            }
+                            roostersArr.push(r);
+                        }
+                        for (let i = 0; i < 200; i++) {
+                            let c = createChick(0, 0);
+                            let speedVar = Math.random(); 
+                            c.runSpeed = 140 + speedVar * 40;
+                            c.x = -400 - (1.0 - speedVar) * 250 - Math.random() * 50; 
+                            c.y = 150 + Math.random() * 280;
+                            c.scale = 0.5 + Math.random() * 1.3;
+                            c.direction = 1;
+                            chicksArr.push(c);
                         }
                     }
+                } else {
+                    let activeMatrix = THE_END_MATRIX;
+                    if (state.isSpeedrunMode) {
+                        let mins = Math.floor((state.playTime || 0) / 60);
+                        let secs = Math.floor((state.playTime || 0) % 60);
+                        if (mins > 99) { mins = 99; secs = 59; }
+                        let timeLine = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+                        activeMatrix = buildTextMatrix([timeLine]);
+                    }
+                    let countX = 0;
+                    activeMatrix.forEach(r => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') countX++; });
+                    chickensArr = [];
+                    for (let i = 0; i < countX; i++) {
+                        chickensArr.push({
+                            x: -200 - (Math.random() * 800),
+                            y: 60 + Math.random() * (canvas.height - 120),
+                            targetX: 0, targetY: 0,
+                            velX: 80 + Math.random() * 40,
+                            velY: (Math.random() - 0.5) * 5,
+                            direction: 1, action: 'roam',
+                            color: Math.random() < 0.5 ? '#ffffff' : ['#dcc5a4', '#8b5a2b', '#444444'][Math.floor(Math.random() * 3)],
+                            scale: state.isSpeedrunMode ? 2.5 : 1.0
+                        });
+                    }
+                    state.chickens = oldChickensNum;
+                    let gridSpacing = state.isSpeedrunMode ? 48 : 16;
+                    let minC = 9999, maxC = -1;
+                    activeMatrix.forEach(r => { for (let c = 0; c < r.length; c++) { if (r[c] === 'X') { if (c < minC) minC = c; if (c > maxC) maxC = c; } } });
+                    let trueCols = (maxC - minC);
+                    let chickenW = state.isSpeedrunMode ? 50 : 20;
+                    let totalVisW = (trueCols * gridSpacing) + chickenW;
+                    let visualStartX = Math.round((canvas.width - totalVisW) / 2) + (state.isSpeedrunMode ? 25 : 0);
+                    let startX = visualStartX - (minC * gridSpacing);
+                    let startY = state.isSpeedrunMode ? 220 : 173;
+                    let chickenIdx = 0;
+                    for (let r = 0; r < activeMatrix.length; r++) {
+                        for (let c = 0; c < activeMatrix[r].length; c++) {
+                            if (activeMatrix[r][c] === 'X' && chickenIdx < chickensArr.length) {
+                                chickensArr[chickenIdx].targetX = startX + (c * gridSpacing);
+                                chickensArr[chickenIdx].targetY = startY + (r * gridSpacing);
+                                chickenIdx++;
+                            }
+                        }
+                    }
+                    cinematicPhase = 0; cinematicTimer = 0;
                 }
-                cinematicPhase = 0; cinematicTimer = 0;
                 retireFadeTimer = -1;
                 saveState();
                 updateUI();
@@ -749,12 +930,6 @@
 
         state.nextAdTime = state.nextAdTime || 600;
 
-        if (GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
-            if (state.playTime >= state.nextAdTime) {
-                state.nextAdTime += 600; // Increment target by 10 minutes
-                triggerMidgameAd("Take a break...");
-            }
-        }
 
         if (state.hasTvAd) {
             state.tvTimer = (state.tvTimer || 0) + dt;
@@ -1289,8 +1464,14 @@
         }
 
         if (isDragging) {
-            let grabRadius = 30 + state.magnetLevel * 5;
-            let maxGrab = state.magnetLevel + 1;
+            let grabRadius = 30 + (state.magnetLevel || 0) * 5;
+            let maxGrab = (state.magnetLevel || 0) + 1;
+            
+            if (state.activeChallenge === 'manual') {
+                grabRadius = Math.min(100, 30 + (state.magnetLevel || 0) * 6);
+                const manualCaps = [1, 2, 4, 6, 8, 10, 15, 20, 30, 50, 75, 100, 150];
+                maxGrab = manualCaps[state.magnetLevel || 0] || 150;
+            }
 
             eggsArr.forEach(egg => {
                 if (!egg.collected && !egg.isBeingDragged && draggedEggs.length < maxGrab) {
@@ -1737,7 +1918,7 @@
 
     function renderChicken(ctx, c) {
 
-        if (!chickenSpriteSheet.complete || chickenSpriteSheet.naturalWidth === 0) return;
+        if (!chickenSpriteSheets[0]) return;
 
         let dir = c.direction || 1;
         let isWalking = Math.abs(c.velX) > 5 || Math.abs(c.velY) > 5;
@@ -1747,11 +1928,12 @@
         let isBack = isVertical && c.velY < 0;
 
         let cHex = (c.color || '#ffffff').toLowerCase();
-        let baseRow = 0;
-        if (cHex === '#dcc5a4') baseRow = 9;
-        else if (cHex === '#8b5a2b') baseRow = 18;
-        else if (cHex === '#444444') baseRow = 27;
+        let variantIdx = 0;
+        if (cHex === '#dcc5a4') variantIdx = 1;
+        else if (cHex === '#8b5a2b') variantIdx = 2;
+        else if (cHex === '#444444') variantIdx = 3;
 
+        let baseRow = 0;
         let row = 0;
         let frame = 0;
         let ANIM_FRAMES = 8;
@@ -1845,7 +2027,7 @@
         let sx = frame * 64;
         let sy = (row + baseRow) * 64;
 
-        ctx.drawImage(chickenSpriteSheet, sx, sy, 64, 64, -32, -44, 64, 64);
+        ctx.drawImage(chickenSpriteSheets[variantIdx] || chickenSpriteSheets[0], sx, sy, 64, 64, -32, -44, 64, 64);
 
         ctx.restore();
     }
@@ -1922,11 +2104,22 @@
         let sScale = 1 - (jumpY / -15);
         let shadowW = (w * 1.8) * Math.max(0.4, sScale);
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillRect(r.x - shadowW / 2, r.y - 5, shadowW, 6);
+        let pcdx = lastMousePos.x - r.x;
+        let pcdy = lastMousePos.y - (r.y - 4);
+        let isNear = state.hasPetting && Math.abs(pcdx) < 34 && Math.abs(pcdy) < 34;
+        let ang = 0;
+        if (isNear) {
+            ang = pcdx * 0.005;
+        }
+
+        if (!r.hideShadow) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(r.x - shadowW / 2, r.y - 5, shadowW, 6);
+        }
 
         ctx.save();
         ctx.translate(r.x, r.y + jumpY);
+        ctx.rotate(ang);
         ctx.scale(dir, 1);
 
         let sx = frame * 64;
@@ -1942,6 +2135,114 @@
         // This function is no longer used with the new auto-sell/processing system
         // Eggs are now processed directly on the underground belt
     }
+
+    function drawEgg(e) {
+            ctx.save();
+            ctx.translate(e.x, e.y - 6);
+
+            // Ground Shadow (Static, before rotation)
+            if (e.type !== 'package') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.beginPath();
+                ctx.ellipse(0, 6, 6, 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if ((state.eggsSold || 0) === 0 && (state.playTime || 0) > 10 && draggedEggs.length === 0 && eggsArr.length > 0 && e === eggsArr[0] && e.y >= EGG_GROUND_Y) {
+                // Tutorial Multilinea
+                drawSpeechBubble(ctx, ["Drag me", "to the market", "to sell me!"], 0, -30);
+
+                // Tutorial Flechitas
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.lineWidth = 4;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                let path = [];
+                if (e.y < UNDERGROUND_FLOOR_Y - 30) {
+                    path = [
+                        { x: e.x, y: e.y },
+                        { x: 40, y: e.y },
+                        { x: 40, y: UNDERGROUND_FLOOR_Y - 15 },
+                        { x: canvas.width - 50, y: UNDERGROUND_FLOOR_Y - 15 }
+                    ];
+                } else {
+                    path = [
+                        { x: e.x, y: e.y },
+                        { x: canvas.width - 50, y: e.y }
+                    ];
+                }
+
+                let totalLen = 0;
+                let segments = [];
+                for (let i = 0; i < path.length - 1; i++) {
+                    let dx = path[i + 1].x - path[i].x;
+                    let dy = path[i + 1].y - path[i].y;
+                    let len = Math.hypot(dx, dy);
+                    if (len > 0) {
+                        segments.push({ len, dx, dy, x: path[i].x, y: path[i].y });
+                        totalLen += len;
+                    }
+                }
+
+                let timeOffset = (Date.now() / 15) % 40;
+                for (let d = timeOffset; d < totalLen; d += 40) {
+                    let dist = d;
+                    let pt = null;
+                    for (let i = 0; i < segments.length; i++) {
+                        let seg = segments[i];
+                        if (dist <= seg.len) {
+                            let t = dist / seg.len;
+                            pt = {
+                                x: seg.x + seg.dx * t,
+                                y: seg.y + seg.dy * t,
+                                angle: Math.atan2(seg.dy, seg.dx)
+                            };
+                            break;
+                        }
+                        dist -= seg.len;
+                    }
+
+                    if (pt) {
+                        ctx.save();
+                        ctx.translate(pt.x, pt.y);
+                        ctx.rotate(pt.angle);
+                        ctx.beginPath();
+                        ctx.moveTo(-7, -7);
+                        ctx.lineTo(4, 0);
+                        ctx.lineTo(-7, 7);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+                ctx.restore();
+            }
+
+            ctx.rotate(e.angle || 0);
+
+            if (!eggsSpriteSheet.complete || eggsSpriteSheet.naturalWidth === 0) {
+                ctx.restore();
+                return;
+            }
+
+            let row = 0;
+            if (e.type === 'package') {
+                row = e.hasRibbon ? 10 : 9;
+            } else {
+                let base = (e.type === 'golden') ? 6 : ((e.type === 'premium') ? 3 : 0);
+                if (e.washed && e.stamped) row = base + 2;
+                else if (e.washed) row = base + 1;
+                else row = base;
+            }
+
+            // Center anchored at (0,0) matching the physics body.
+            // The sprite generator baked eggs 6px up inside the 32x32 cell, so compensate with -10 instead of -16.
+            ctx.drawImage(eggsSpriteSheet, 0, row * 32, 32, 32, -16, -10, 32, 32);
+
+            ctx.restore();
+        };
 
     function draw() {
         if (state.hasRetired) {
@@ -2092,7 +2393,7 @@
             ctx.stroke();
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = '14px "Press Start 2P"';
+            ctx.font = `${14 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.strokeStyle = '#000000';
@@ -2154,113 +2455,7 @@
             ctx.fill();
         }
 
-        let drawEgg = (e) => {
-            ctx.save();
-            ctx.translate(e.x, e.y - 6);
-
-            // Ground Shadow (Static, before rotation)
-            if (e.type !== 'package') {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.beginPath();
-                ctx.ellipse(0, 6, 6, 2, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            if ((state.eggsSold || 0) === 0 && (state.playTime || 0) > 10 && draggedEggs.length === 0 && eggsArr.length > 0 && e === eggsArr[0] && e.y >= EGG_GROUND_Y) {
-                // Tutorial Multilinea
-                drawSpeechBubble(ctx, ["Drag me", "to the market", "to sell me!"], 0, -30);
-
-                // Tutorial Flechitas
-                ctx.save();
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.lineWidth = 4;
-                ctx.lineJoin = 'round';
-                ctx.lineCap = 'round';
-
-                let path = [];
-                if (e.y < UNDERGROUND_FLOOR_Y - 30) {
-                    path = [
-                        { x: e.x, y: e.y },
-                        { x: 40, y: e.y },
-                        { x: 40, y: UNDERGROUND_FLOOR_Y - 15 },
-                        { x: canvas.width - 50, y: UNDERGROUND_FLOOR_Y - 15 }
-                    ];
-                } else {
-                    path = [
-                        { x: e.x, y: e.y },
-                        { x: canvas.width - 50, y: e.y }
-                    ];
-                }
-
-                let totalLen = 0;
-                let segments = [];
-                for (let i = 0; i < path.length - 1; i++) {
-                    let dx = path[i + 1].x - path[i].x;
-                    let dy = path[i + 1].y - path[i].y;
-                    let len = Math.hypot(dx, dy);
-                    if (len > 0) {
-                        segments.push({ len, dx, dy, x: path[i].x, y: path[i].y });
-                        totalLen += len;
-                    }
-                }
-
-                let timeOffset = (Date.now() / 15) % 40;
-                for (let d = timeOffset; d < totalLen; d += 40) {
-                    let dist = d;
-                    let pt = null;
-                    for (let i = 0; i < segments.length; i++) {
-                        let seg = segments[i];
-                        if (dist <= seg.len) {
-                            let t = dist / seg.len;
-                            pt = {
-                                x: seg.x + seg.dx * t,
-                                y: seg.y + seg.dy * t,
-                                angle: Math.atan2(seg.dy, seg.dx)
-                            };
-                            break;
-                        }
-                        dist -= seg.len;
-                    }
-
-                    if (pt) {
-                        ctx.save();
-                        ctx.translate(pt.x, pt.y);
-                        ctx.rotate(pt.angle);
-                        ctx.beginPath();
-                        ctx.moveTo(-7, -7);
-                        ctx.lineTo(4, 0);
-                        ctx.lineTo(-7, 7);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-                ctx.restore();
-            }
-
-            ctx.rotate(e.angle || 0);
-
-            if (!eggsSpriteSheet.complete || eggsSpriteSheet.naturalWidth === 0) {
-                ctx.restore();
-                return;
-            }
-
-            let row = 0;
-            if (e.type === 'package') {
-                row = e.hasRibbon ? 10 : 9;
-            } else {
-                let base = (e.type === 'golden') ? 6 : ((e.type === 'premium') ? 3 : 0);
-                if (e.washed && e.stamped) row = base + 2;
-                else if (e.washed) row = base + 1;
-                else row = base;
-            }
-
-            // Center anchored at (0,0) matching the physics body.
-            // The sprite generator baked eggs 6px up inside the 32x32 cell, so compensate with -10 instead of -16.
-            ctx.drawImage(eggsSpriteSheet, 0, row * 32, 32, 32, -16, -10, 32, 32);
-
-            ctx.restore();
-        };
+        
 
         let drawChicken = (c) => {
             renderChicken(ctx, c);
@@ -2417,7 +2612,7 @@
 
         // Carved capacity text
         ctx.textAlign = 'center';
-        ctx.font = '7px "Press Start 2P"';
+        ctx.font = `${7 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Drop shadow
         ctx.fillText(`${Math.floor(state.water)}`, wx + ww / 2 + 1, wy + wh + 13);
         ctx.fillStyle = '#e0f7fa'; // Ice blue text
@@ -2434,18 +2629,18 @@
 
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'left';
-            ctx.font = '6px "Press Start 2P"';
-            ctx.fillText(`WATER: ${fmt(Math.floor(state.water))}/${fmt(state.maxWater)}`, wx + ww + 20, lastMousePos.y - 5);
+            ctx.font = `${6 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+            ctx.fillText(`${window.t ? window.t("water") : "WATER:"} ${fmt(Math.floor(state.water))}/${fmt(state.maxWater)}`, wx + ww + 20, lastMousePos.y - 5);
             ctx.fillStyle = '#ffeb3b';
-            ctx.fillText(`Fill +${fmt(REFILL_TIERS[state.refillLevel])} ($${fmt(REFILL_COST_TIERS[state.refillLevel])})`, wx + ww + 20, lastMousePos.y + 7);
+            ctx.fillText(`${window.t ? window.t("fill") : "Fill"} +${fmt(REFILL_TIERS[state.refillLevel])} ($${fmt(REFILL_COST_TIERS[state.refillLevel])})`, wx + ww + 20, lastMousePos.y + 7);
         }
 
         let physWx = -100, physWw = 145;
 
         if (state.water <= 0) {
             drawSpeechBubble(ctx, [
-                "Water empty,",
-                `click to refill ($${REFILL_COST_TIERS[state.refillLevel]})`
+                (window.t ? window.t("waterEmpty") : "Water empty,"),
+                (window.t ? window.t("clickToRefill") : "click to refill ") + `(${REFILL_COST_TIERS[state.refillLevel]})`
             ], wx + ww / 2, wy - 5, (wy - 5 < 50));
         }
         ctx.textAlign = 'left';
@@ -2576,7 +2771,7 @@
 
         // Enhanced capacity text
         ctx.textAlign = 'center';
-        ctx.font = '7px "Press Start 2P"';
+        ctx.font = `${7 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Drop shadow
         ctx.fillText(`${Math.floor(state.food)}`, fx + fw / 2 + 1, fy + fh + 13);
         ctx.fillStyle = '#fffacd'; // Lemonchiffon
@@ -2593,18 +2788,18 @@
 
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'left';
-            ctx.font = '6px "Press Start 2P"';
-            ctx.fillText(`FOOD: ${fmt(Math.floor(state.food))}/${fmt(state.maxFood)}`, fx - 130, lastMousePos.y - 5);
+            ctx.font = `${6 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+            ctx.fillText(`${window.t ? window.t("food") : "FOOD:"} ${fmt(Math.floor(state.food))}/${fmt(state.maxFood)}`, fx - 130, lastMousePos.y - 5);
             ctx.fillStyle = '#ffeb3b';
-            ctx.fillText(`Fill +${fmt(REFILL_TIERS[state.refillLevel])} ($${fmt(REFILL_COST_TIERS[state.refillLevel])})`, fx - 130, lastMousePos.y + 7);
+            ctx.fillText(`${window.t ? window.t("fill") : "Fill"} +${fmt(REFILL_TIERS[state.refillLevel])} ($${fmt(REFILL_COST_TIERS[state.refillLevel])})`, fx - 130, lastMousePos.y + 7);
         }
 
         let physFx = 755, physFw = 200;
 
         if (state.food <= 0) {
             drawSpeechBubble(ctx, [
-                "Food empty,",
-                `click to refill ($${REFILL_COST_TIERS[state.refillLevel]})`
+                (window.t ? window.t("foodEmpty") : "Food empty,"),
+                (window.t ? window.t("clickToRefill") : "click to refill ") + `(${REFILL_COST_TIERS[state.refillLevel]})`
             ], fx + fw / 2, fy - 5, (fy - 5 < 50));
         }
         ctx.textAlign = 'left';
@@ -2630,8 +2825,8 @@
             ctx.rect(startX, EGG_GROUND_Y, currentW, 6);
             ctx.clip();
             ctx.beginPath();
-            let speedFactor = 0.01 + 0.99 * (state.autoCollectLevel / 5);
-            let offset = (Date.now() / (20 / speedFactor)) % 20;
+            let speedFactor = 0.01 + 0.99 * (state.autoCollectLevel / 3);
+            let offset = (Date.now() / (12 / speedFactor)) % 20;
             for (let i = startX - 20; i < startX + currentW + 20; i += 20) {
                 let lx = i - offset;
                 ctx.moveTo(lx, EGG_GROUND_Y);
@@ -2664,7 +2859,7 @@
             ctx.clip();
             ctx.beginPath();
             let speedFactor = 0.01 + 0.99 * (state.autoSellLevel / 3);
-            let offset = -(Date.now() / (20 / speedFactor)) % 20;
+            let offset = -(Date.now() / (12 / speedFactor)) % 20;
             for (let i = beltStartX - 20; i < beltEndX + 20; i += 20) {
                 let lx = i - offset;
                 ctx.moveTo(lx, UNDERGROUND_FLOOR_Y);
@@ -2872,8 +3067,8 @@
         ctx.fillRect(signX + 2, signY + 2, 52, 14);
         // Text
         ctx.fillStyle = '#f1c40f'; // Bright gold letters
-        ctx.font = '7px "Press Start 2P"';
-        ctx.fillText("MARKET", signX + 5, signY + 12);
+        ctx.font = `${7 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+        ctx.fillText((window.t ? window.t("market") : "MARKET"), signX + 5, signY + 12);
 
 
 
@@ -2922,7 +3117,7 @@
                 ctx.lineTo(3, 8);
                 ctx.stroke();
 
-                ctx.font = '6px "Press Start 2P"';
+                ctx.font = `${6 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                 ctx.textAlign = 'center';
                 ctx.fillStyle = '#333';
                 ctx.fillText("RIP", 0, -1);
@@ -3013,11 +3208,11 @@
 
             // "PRO PACK" Logo illuminated on the large front slab
             ctx.fillStyle = '#f1c40f'; // Gold text
-            ctx.font = 'bold 8px "Press Start 2P"';
+            ctx.font = `bold ${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             ctx.fillText("PRO", 640, basY - 30);
 
             ctx.fillStyle = '#bdc3c7'; // Silver subtext
-            ctx.font = '5px "Press Start 2P"';
+            ctx.font = `${5 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             ctx.fillText("PACK", 642, basY - 20);
         }
 
@@ -3039,7 +3234,7 @@
                     ctx.drawImage(heartSpriteSheet, p.x - 4, renderY - 4, 8, 8);
                 } else {
                     ctx.fillStyle = p.color;
-                    ctx.font = 'bold 8px "Press Start 2P", monospace';
+                    ctx.font = `bold ${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}", monospace`;
                     ctx.textAlign = p.x > canvas.width - 80 ? 'right' : 'center';
 
                     // Dark Outline for readability
@@ -3077,17 +3272,32 @@
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '8px "Press Start 2P"';
-        ctx.fillText(`v1.1.1 | ${currentFps} FPS`, canvas.width - 5, canvas.height - 5);
+        ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+        ctx.fillText(`v1.2 | ${currentFps} FPS`, canvas.width - 5, canvas.height - 5);
 
-        // Speedrun Timer Text
-        if (state.isSpeedrunMode) {
+        // Challenge / Timer Text
+        if (state.isSpeedrunMode || state.activeChallenge !== 'vanilla') {
+            let hrs = Math.floor((state.playTime || 0) / 3600);
             let mins = Math.floor(((state.playTime || 0) % 3600) / 60);
             let secs = Math.floor((state.playTime || 0) % 60);
+            let timeStr = (hrs > 0 ? `${hrs}:` : '') + `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            
             ctx.textAlign = 'left';
-            ctx.fillStyle = Date.now() % 1000 < 500 ? '#e74c3c' : '#c0392b';
-            ctx.font = '12px "Press Start 2P"';
-            ctx.fillText(`SPEEDRUN MODE: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`, 10, canvas.height - 4);
+            ctx.font = `${12 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+            
+            let labelStr = '';
+            if (state.isSpeedrunMode) {
+                ctx.fillStyle = Date.now() % 1000 < 500 ? '#e74c3c' : '#c0392b';
+                labelStr = 'SPEEDRUN MODE: ';
+            } else if (state.activeChallenge === 'adam') {
+                ctx.fillStyle = Date.now() % 1000 < 500 ? '#f39c12' : '#e67e22';
+                labelStr = 'ADAM & EVE: ';
+            } else if (state.activeChallenge === 'manual') {
+                ctx.fillStyle = Date.now() % 1000 < 500 ? '#3498db' : '#2980b9';
+                labelStr = 'EGG JAM: ';
+            }
+            
+            ctx.fillText(`${labelStr}${timeStr}`, 10, canvas.height - 4);
         }
 
         // Retire fade-to-black overlay
@@ -3236,7 +3446,6 @@
                 localStorage.setItem('chickenIdleSpeedrun', 'true');
                 localStorage.removeItem('chickenIdleSave');
                 localStorage.removeItem('chickenIdleSpeedrunSubmitted');
-                try { window.CrazyGames.SDK.data.removeItem('chickenIdleSave'); } catch (err) { }
                 location.reload();
                 return;
             }
@@ -3464,7 +3673,7 @@
         });
     }
 
-    btnWipe.addEventListener('click', () => {
+    if (btnWipe) btnWipe.addEventListener('click', () => {
         document.getElementById('wipe-confirm-overlay').style.display = 'flex';
     });
 
@@ -3489,12 +3698,6 @@
             pendingModeAction = null;
         }
 
-        if (typeof GAME_MARKET !== 'undefined' && GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
-            try { await window.CrazyGames.SDK.data.removeItem('chickenIdleSave'); } catch (e) { }
-            try { await window.CrazyGames.SDK.data.setItem('chickenIdleSave', ''); } catch (e) { }
-            try { if (window.CrazyGames.SDK.data.clear) await window.CrazyGames.SDK.data.clear(); } catch (e) { }
-            await new Promise(r => setTimeout(r, 600));
-        }
 
         window.location.href = window.location.href.split('?')[0];
     });
@@ -3516,6 +3719,7 @@
             _totalMoneySpent += state.costs[item];
 
             if (item === 'chicken') {
+                if (state.activeChallenge === 'adam') return; // Bloqueado
                 playSound(sfxCok, 0.5, 100);
                 state.chickens++;
                 if (state.chickens === 1) state.costs.chicken = 2;
@@ -3555,6 +3759,7 @@
                     shopCosts.autoWater.innerText = 'MAX';
                 }
             } else if (item === 'autoCollect') {
+                if (state.activeChallenge === 'manual') return; // Roto
                 state.autoCollectLevel++;
                 const costsColl = [25, 250, 5000, 100000, 2000000];
                 if (state.autoCollectLevel < 5) state.costs.autoCollect = costsColl[state.autoCollectLevel];
@@ -3645,15 +3850,18 @@
                 }
             } else if (item === 'magnet') {
                 state.magnetLevel = (state.magnetLevel || 0) + 1;
-                const mCosts = [10, 20, 40, 60, 100, 200, 400, 600, 1000];
+                const mCosts = [10, 20, 40, 60, 100, 200, 400, 600, 1000, 2500, 5000, 10000];
                 if (state.magnetLevel < mCosts.length) state.costs.magnet = mCosts[state.magnetLevel];
             } else if (item === 'rooster') {
                 state.hasRooster = true;
                 state.roosterLevel = (state.roosterLevel || 0) + 1;
                 if (state.roosterLevel === 1) state.costs.rooster = 5000;
                 else if (state.roosterLevel === 2) state.costs.rooster = 100000;
+                else if (state.roosterLevel === 3) state.costs.rooster = 500000;
+                else if (state.roosterLevel === 4) state.costs.rooster = 2000000;
                 roostersArr.push(createRooster());
-                if (state.roosterLevel >= 3) {
+                let maxRooster = state.activeChallenge === 'adam' ? 5 : 3;
+                if (state.roosterLevel >= maxRooster) {
                     shopBtns.rooster.disabled = true;
                     shopCosts.rooster.innerText = 'MAX';
                 }
@@ -3720,6 +3928,18 @@
         if (chickensEl) chickensEl.innerText = fmt(state.chickens);
 
         shopCosts.chicken.innerText = fmt(state.costs.chicken) + '$';
+        if (state.activeChallenge === 'adam') {
+            shopBtns.chicken.disabled = true;
+            shopCosts.chicken.innerText = 'BANNED';
+            shopBtns.chicken.style.opacity = '0.5';
+        } else {
+            shopBtns.chicken.disabled = (state.money < state.costs.chicken);
+            shopBtns.chicken.style.opacity = '';
+        }
+        
+        let maxMagnet = state.activeChallenge === 'manual' ? 12 : 9;
+        let maxRooster = state.activeChallenge === 'adam' ? 5 : 3;
+
         if (!state.hasPetting) shopCosts.petting.innerText = fmt(state.costs.petting) + '$';
         if (state.maxFoodLevel < 10) shopCosts.maxFood.innerText = fmt(state.costs.maxFood) + '$';
         else shopCosts.maxFood.innerText = 'MAX';
@@ -3742,37 +3962,49 @@
         if (state.musicLevel < 10) shopCosts.music.innerText = fmt(state.costs.music) + '$';
         if (state.dietLevel < 4) shopCosts.diet.innerText = fmt(state.costs.diet) + '$';
         if ((state.batchLevel || 0) < 2) shopCosts.batch.innerText = fmt(state.costs.batch) + '$';
-        if ((state.magnetLevel || 0) < 9) shopCosts.magnet.innerText = fmt(state.costs.magnet) + '$';
+        
+        if ((state.magnetLevel || 0) < maxMagnet) shopCosts.magnet.innerText = fmt(state.costs.magnet) + '$';
         else shopCosts.magnet.innerText = 'MAX';
-        if ((state.roosterLevel || 0) < 3) shopCosts.rooster.innerText = fmt(state.costs.rooster) + '$';
+        
+        if ((state.roosterLevel || 0) < maxRooster) shopCosts.rooster.innerText = fmt(state.costs.rooster) + '$';
+        else shopCosts.rooster.innerText = 'MAX';
+
         if (!state.hasTvAd) shopCosts.tvAd.innerText = fmt(state.costs.tvAd) + '$';
         else shopCosts.tvAd.innerText = 'MAX';
         if (!state.hasRetired) shopCosts.retire.innerText = fmt(state.costs.retire) + '$';
         if (!state.hasRamp) shopCosts.ramp.innerText = fmt(state.costs.ramp) + '$';
 
-        shopBtns.autoFood.querySelector('span:first-child').innerHTML = 'Auto-Food' + getPips(state.autoFoodLevel, AUTO_TICK_TIERS.length - 1);
-        shopBtns.autoWater.querySelector('span:first-child').innerHTML = 'Auto-Water' + getPips(state.autoWaterLevel, AUTO_TICK_TIERS.length - 1);
-        shopBtns.autoCollect.querySelector('span:first-child').innerHTML = 'Farm Belt' + getPips(state.autoCollectLevel, 5);
-        shopBtns.autoSell.querySelector('span:first-child').innerHTML = 'Storage Belt' + getPips(state.autoSellLevel, 5);
-        shopBtns.refill.querySelector('span:first-child').innerHTML = 'Refill' + getPips(state.refillLevel, REFILL_TIERS.length - 1);
-        shopBtns.maxFood.querySelector('span:first-child').innerHTML = 'Max Food' + getPips(state.maxFoodLevel, 10);
-        shopBtns.maxWater.querySelector('span:first-child').innerHTML = 'Max Water' + getPips(state.maxWaterLevel, 10);
-        shopBtns.premium.querySelector('span:first-child').innerHTML = `Premium Feed` + getPips(state.premiumLevel, 10);
-        shopBtns.golden.querySelector('span:first-child').innerHTML = `Golden Egg` + getPips(state.goldenLevel || 0, 10);
-        shopBtns.music.querySelector('span:first-child').innerHTML = 'Farm Music' + getPips(state.musicLevel, 10);
-        shopBtns.diet.querySelector('span:first-child').innerHTML = 'Pro Diet' + getPips(state.dietLevel, 4);
-        if (shopBtns.batch) shopBtns.batch.querySelector('span:first-child').innerHTML = 'Dessert Stomach' + getPips(state.batchLevel || 0, 2);
-        shopBtns.rooster.querySelector('span:first-child').innerHTML = 'The Rooster' + getPips(state.roosterLevel || 0, 3);
-        shopBtns.growth.querySelector('span:first-child').innerHTML = 'Growth Formula' + getPips(state.growthLevel || 0, 10);
-        shopBtns.magnet.querySelector('span:first-child').innerHTML = 'Magnet Force' + getPips(state.magnetLevel || 0, 9);
-        shopBtns.tvAd.querySelector('span:first-child').innerHTML = 'As Seen On TV' + (state.hasTvAd ? '<br><span style="color:#a0522d;font-size:10px;line-height:1.5;">■</span>' : '');
+        shopBtns.autoFood.querySelector('span:first-child').innerHTML = (window.t ? window.t("autoFood") : 'Auto-Food') + getPips(state.autoFoodLevel, AUTO_TICK_TIERS.length - 1);
+        shopBtns.autoWater.querySelector('span:first-child').innerHTML = (window.t ? window.t("autoWater") : 'Auto-Water') + getPips(state.autoWaterLevel, AUTO_TICK_TIERS.length - 1);
+        shopBtns.autoCollect.querySelector('span:first-child').innerHTML = (window.t ? window.t("farmBelt") : 'Farm Belt') + getPips(state.autoCollectLevel, 5);
+        shopBtns.autoSell.querySelector('span:first-child').innerHTML = (window.t ? window.t("storageBelt") : 'Storage Belt') + getPips(state.autoSellLevel, 5);
+        shopBtns.refill.querySelector('span:first-child').innerHTML = (window.t ? window.t("refill") : 'Refill') + getPips(state.refillLevel, REFILL_TIERS.length - 1);
+        shopBtns.maxFood.querySelector('span:first-child').innerHTML = (window.t ? window.t("maxFood") : 'Max Food') + getPips(state.maxFoodLevel, 10);
+        shopBtns.maxWater.querySelector('span:first-child').innerHTML = (window.t ? window.t("maxWater") : 'Max Water') + getPips(state.maxWaterLevel, 10);
+        shopBtns.premium.querySelector('span:first-child').innerHTML = (window.t ? window.t("premiumFeed") : `Premium Feed`) + getPips(state.premiumLevel, 10);
+        shopBtns.golden.querySelector('span:first-child').innerHTML = (window.t ? window.t("goldenEgg") : `Golden Egg`) + getPips(state.goldenLevel || 0, 10);
+        shopBtns.music.querySelector('span:first-child').innerHTML = (window.t ? window.t("farmMusic") : 'Farm Music') + getPips(state.musicLevel, 10);
+        shopBtns.diet.querySelector('span:first-child').innerHTML = (window.t ? window.t("proDiet") : 'Pro Diet') + getPips(state.dietLevel, 4);
+        if (shopBtns.batch) shopBtns.batch.querySelector('span:first-child').innerHTML = (window.t ? window.t("dessertStomach") : "Dessert Stomach") + getPips(state.batchLevel || 0, 2);
+        shopBtns.rooster.querySelector('span:first-child').innerHTML = (window.t ? window.t("theRooster") : "The Rooster") + getPips(state.roosterLevel || 0, maxRooster);
+        shopBtns.growth.querySelector('span:first-child').innerHTML = (window.t ? window.t("growthFormula") : "Growth Formula") + getPips(state.growthLevel || 0, 10);
+        shopBtns.magnet.querySelector('span:first-child').innerHTML = (window.t ? window.t("magnetForce") : "Magnet Force") + getPips(state.magnetLevel || 0, maxMagnet);
+        shopBtns.tvAd.querySelector('span:first-child').innerHTML = (window.t ? window.t("asSeenOnTV") : "As Seen On TV") + (state.hasTvAd ? '<br><span style="color:#a0522d;font-size:10px;line-height:1.5;">■</span>' : '');
 
         // Visibility configuration
         shopBtns.maxFood.style.display = (state.maxChickens < 9 || state.maxFoodLevel >= 10) ? 'none' : 'flex';
         shopBtns.maxWater.style.display = (state.maxChickens < 9 || state.maxWaterLevel >= 10) ? 'none' : 'flex';
 
         shopBtns.autoCollect.style.display = (state.eggsSold < 25 || state.autoCollectLevel >= 5) ? 'none' : 'flex';
-        shopBtns.autoSell.style.display = (state.autoCollectLevel < 1 || state.autoSellLevel >= 5) ? 'none' : 'flex';
+        if (state.activeChallenge === 'manual') {
+            shopBtns.autoCollect.style.display = 'flex';
+            shopBtns.autoCollect.style.opacity = '0.5';
+            shopCosts.autoCollect.innerText = 'BROKEN';
+        } else {
+            shopBtns.autoCollect.style.opacity = '';
+        }
+
+        shopBtns.autoSell.style.display = ((state.autoCollectLevel < 1 && state.activeChallenge !== 'manual') || state.autoSellLevel >= 5) ? 'none' : 'flex';
         shopBtns.washer.style.display = (state.autoSellLevel < 1 || state.hasWasher) ? 'none' : 'flex';
         shopBtns.stamper.style.display = (!state.hasWasher || state.hasStamper) ? 'none' : 'flex';
         shopBtns.packager.style.display = (!state.hasStamper || state.hasPackager) ? 'none' : 'flex';
@@ -3780,8 +4012,14 @@
         shopBtns.music.style.display = (state.maxChickens < 20 || state.musicLevel >= 10) ? 'none' : 'flex';
         shopBtns.diet.style.display = (state.maxChickens < 30 || state.dietLevel >= 4) ? 'none' : 'flex';
         if (shopBtns.batch) shopBtns.batch.style.display = (state.dietLevel < 3 || (state.batchLevel || 0) >= 2) ? 'none' : 'flex';
-        shopBtns.magnet.style.display = (state.maxChickens >= 3 && (state.magnetLevel || 0) < 9) ? 'flex' : 'none';
-        shopBtns.rooster.style.display = (state.maxChickens >= 10 && (state.roosterLevel || 0) < 3) ? 'flex' : 'none';
+        
+        shopBtns.magnet.style.display = (state.maxChickens >= 3 && (state.magnetLevel || 0) < maxMagnet) ? 'flex' : 'none';
+        
+        shopBtns.rooster.style.display = (state.maxChickens >= 10 && (state.roosterLevel || 0) < maxRooster) ? 'flex' : 'none';
+        if (state.activeChallenge === 'adam') {
+            shopBtns.rooster.style.display = ((state.roosterLevel || 0) < maxRooster) ? 'flex' : 'none';
+        }
+        
         shopBtns.growth.style.display = ((state.roosterLevel || 0) < 2 || (state.growthLevel || 0) >= 10) ? 'none' : 'flex';
         shopBtns.retire.style.display = (state.isSpeedrunMode || (state.totalEarnings && state.totalEarnings >= 100000000)) ? 'flex' : 'none';
         shopBtns.petting.style.display = (state.maxChickens < 1 || state.hasPetting) ? 'none' : 'flex';
@@ -3791,7 +4029,7 @@
             state.maxWaterLevel >= 10 &&
             state.autoFoodLevel >= AUTO_TICK_TIERS.length - 1 &&
             state.autoWaterLevel >= AUTO_TICK_TIERS.length - 1 &&
-            state.autoCollectLevel >= 5 &&
+            (state.autoCollectLevel >= 5 || state.activeChallenge === 'manual') &&
             state.autoSellLevel >= 5 &&
             state.refillLevel >= REFILL_TIERS.length - 1 &&
             state.premiumLevel >= 10 &&
@@ -3839,8 +4077,8 @@
             music: state.musicLevel >= 10,
             diet: state.dietLevel >= 4,
             batch: (state.batchLevel || 0) >= 2,
-            magnet: (state.magnetLevel || 0) >= 9,
-            rooster: (state.roosterLevel || 0) >= 3,
+            magnet: (state.magnetLevel || 0) >= maxMagnet,
+            rooster: (state.roosterLevel || 0) >= maxRooster,
             growth: (state.growthLevel || 0) >= 10,
             tvAd: state.hasTvAd,
             retire: state.hasRetired
@@ -3877,7 +4115,7 @@
         });
 
         const steamWishBtn = document.getElementById('steam-btn');
-        if (steamWishBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds" || GAME_MARKET === "crazygames")) {
+        if (steamWishBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds")) {
             if (state.hasRetired) {
                 let topbar = document.getElementById('topbar');
                 if (topbar && steamWishBtn.parentNode !== topbar) {
@@ -3973,16 +4211,16 @@
                             let hrs = Math.floor((state.playTime || 0) / 3600);
                             let mins = Math.floor(((state.playTime || 0) % 3600) / 60);
                             let secs = Math.floor((state.playTime || 0) % 60);
-                            timeEl.innerText = `TIME: ${String(hrs).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+                            timeEl.innerText = `${window.t ? window.t("time") : "TIME:"} ${String(hrs).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
 
-                            if (chickensEl2) chickensEl2.innerText = `Chickens Freed: ${state.maxChickens || state.chickens || 0}`;
+                            if (chickensEl2) chickensEl2.innerText = `${window.t ? window.t("chickensFreed") : "Chickens Freed:"} ${state.maxChickens || state.chickens || 0}`;
 
                             let mktSelect = document.getElementById('speedrun-market-select');
                             if (mktSelect) {
                                 if (GAME_MARKET === "itchio") {
-                                    mktSelect.innerHTML = '<option value="" disabled selected>-- SELECT COMMUNITY --</option><option value="itchio">itch.io</option><option value="incrementaldb">IncrementalDB</option>';
+                                    mktSelect.innerHTML = `<option value="" disabled selected>${window.t ? window.t("selectCommunity") : "-- SELECT COMMUNITY --"}</option><option value="itchio">itch.io</option><option value="incrementaldb">IncrementalDB</option>`;
                                 } else {
-                                    let marketNames = { newgrounds: 'Newgrounds', galaxy: 'Galaxy', crazygames: 'CrazyGames' };
+                                    let marketNames = { newgrounds: 'Newgrounds', galaxy: 'Galaxy', googleplay: 'Google Play' };
                                     mktSelect.innerHTML = `<option value="${GAME_MARKET}">${marketNames[GAME_MARKET] || GAME_MARKET}</option>`;
                                 }
                             }
@@ -3992,6 +4230,270 @@
                     }
                 }
             }
+        }
+        // Phase 5: Custom Comedy Animations (Adam & Eve / Egg Jam)
+        else if (cinematicPhase === 5) {
+            if (state.activeChallenge === 'adam') {
+                // --- INTERNAL STATE ---
+                // adamAct: 'run' -> dad running, chickies trailing
+                //          'stop' -> dad stopped, turned, chickies rushing
+                //          'pile' -> dad knocked, chickies piling on, fade begins
+                if (!window._adamAct) window._adamAct = 'run';
+                if (!window._adamActTimer) window._adamActTimer = 0;
+                window._adamActTimer += dt;
+
+                let dad = roostersArr.find(r => r.isDad);
+                let chicksOnDad = 0;
+                let halfW = canvas.width / 2;
+
+                // ============ ACT 1: RUNNING ============
+                if (window._adamAct === 'run') {
+                    roostersArr.forEach(r => {
+                        r.x += r.velX * dt;
+                        r.direction = 1;
+                    });
+
+                    // Chicks start running immediately
+                    chicksArr.forEach(c => {
+                        c.x += (c.runSpeed || 160) * dt;
+                        c.direction = 1;
+                    });
+
+                    // Dad reaches center → switch to STOP act
+                    if (dad && dad.x >= halfW) {
+                        window._adamAct = 'stop';
+                        window._adamActTimer = 0;
+                        dad.velX = 0;
+                        dad.direction = -1; // turns to look back
+                    }
+
+                // ============ ACT 2: DAD STOPS, CHICKS RUSH IN ============
+                } else if (window._adamAct === 'stop') {
+                    // Other roosters keep running off screen
+                    roostersArr.forEach(r => {
+                        if (!r.isDad) {
+                            r.x += r.velX * dt;
+                            r.direction = 1;
+                        }
+                    });
+
+                    // Chicks now target the dad directly, rushing towards him
+                    let words = ["Papá!", "Dad!", "Père!", "Vater!", "Papai!", "Baba!", "Tata!", "Otí!", "Babbo!"];
+                    chicksArr.forEach((c, idx) => {
+                        let tx, ty;
+                        if (idx < 25) {
+                            let a = (idx / 25) * Math.PI * 2 + cinematicTimer * 2.2;
+                            let r = 20;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                            let jumpSine = Math.sin(cinematicTimer * 4 + idx * 2.3);
+                            c.jumpTimer = Math.max(0, jumpSine * 4 - 3) * 0.5;
+                        } else if (idx < 50) {
+                            let a = ((idx - 25) / 25) * Math.PI * 2 - cinematicTimer * 1.8;
+                            let r = 40;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                            let jumpSine = Math.sin(cinematicTimer * 4 + idx * 2.3);
+                            c.jumpTimer = Math.max(0, jumpSine * 4 - 3) * 0.5;
+                        } else if (idx < 125) {
+                            let a = ((idx - 50) / 75) * Math.PI * 2 + cinematicTimer * 1.5;
+                            let r = 60;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                        } else {
+                            let a = ((idx - 125) / 75) * Math.PI * 2 - cinematicTimer * 1.0;
+                            let r = 90;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                        }
+
+                        let dx = tx - c.x;
+                        let dy = ty - c.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 8) {
+                            let spd = 180 + (idx % 5) * 10;
+                            c.x += (dx / dist) * spd * dt;
+                            c.y += (dy / dist) * spd * dt;
+                        } else {
+                            if (idx < 50) chicksOnDad++;
+                        }
+                        c.direction = dx >= 0 ? 1 : -1;
+                    });
+
+                    // Enough chicks on him → PILE act
+                    if (chicksOnDad > 25 && window._adamAct !== 'pile') {
+                        window._adamAct = 'pile';
+                        window._adamActTimer = 0;
+                        particlesArr.push({ x: dad.x, y: dad.y - 40, text: "?!", color: '#ff4444', life: 2.5, maxLife: 2.5, velY: -15 });
+                        window._dadKnockedDownTimer = 0;
+                    }
+
+                // ============ ACT 3: PILE-ON & RITUAL ============
+                } else if (window._adamAct === 'pile') {
+                    window._dadKnockedDownTimer = (window._dadKnockedDownTimer || 0) + dt;
+
+                    chicksArr.forEach((c, idx) => {
+                        let tx, ty;
+                        if (idx < 25) {
+                            let a = (idx / 25) * Math.PI * 2 + cinematicTimer * 2.2;
+                            let r = 20;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                            let jumpSine = Math.sin(cinematicTimer * 4 + idx * 2.3);
+                            c.jumpTimer = Math.max(0, jumpSine * 4 - 3) * 0.5;
+                        } else if (idx < 50) {
+                            let a = ((idx - 25) / 25) * Math.PI * 2 - cinematicTimer * 1.8;
+                            let r = 40;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                            let jumpSine = Math.sin(cinematicTimer * 4 + idx * 2.3);
+                            c.jumpTimer = Math.max(0, jumpSine * 4 - 3) * 0.5;
+                        } else if (idx < 125) {
+                            // Inner ritual ring
+                            let a = ((idx - 50) / 75) * Math.PI * 2 + cinematicTimer * 1.5;
+                            let r = 60;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                        } else {
+                            // Outer ritual ring
+                            let a = ((idx - 125) / 75) * Math.PI * 2 - cinematicTimer * 1.0;
+                            let r = 90;
+                            tx = dad.x + Math.cos(a) * r;
+                            ty = dad.y - 5 + Math.sin(a) * (r * 0.6);
+                        }
+
+                        let dx = tx - c.x;
+                        let dy = ty - c.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 5) {
+                            let spd = 180 + (idx % 5) * 10;
+                            c.x += (dx / dist) * spd * dt;
+                            c.y += (dy / dist) * spd * dt;
+                        } else {
+                            c.x = tx;
+                            c.y = ty;
+                        }
+                        
+                        c.direction = dx >= 0 ? 1 : -1;
+                    });
+
+                    // Extended ritual time to 8 seconds so it can be fully appreciated
+                    if (window._dadKnockedDownTimer > 8.0) {
+                        cinematicPhase = 4;
+                        cinematicTimer = 0;
+                    }
+                }
+
+            } else if (state.activeChallenge === 'manual') {
+                if (!window.cineEggsSpawned) window.cineEggsSpawned = 0;
+                if (!window.cineFinishedTimer) window.cineFinishedTimer = 0;
+
+                let distToSeg = (px, py, ax, ay, bx, by) => {
+                    let l2 = (bx - ax)*(bx - ax) + (by - ay)*(by - ay);
+                    if (l2 === 0) return Math.hypot(px - ax, py - ay);
+                    let t = Math.max(0, Math.min(1, ((px - ax)*(bx - ax) + (py - ay)*(by - ay)) / l2));
+                    return Math.hypot(px - (ax + t*(bx - ax)), py - (ay + t*(by - ay)));
+                };
+
+                if (window.cineEggsSpawned < 600) {
+                    for(let i=0; i<2; i++) {
+                        if (Math.random() > 0.9) continue;
+                        
+                        let targetX, targetY;
+                        while(true) {
+                            targetX = canvas.width/2 + (Math.random() - 0.5) * 1000;
+                            targetY = canvas.height/2 + (Math.random() - 0.5) * 500;
+                            
+                            let cx = canvas.width / 2 - 107;
+                            let cy = canvas.height / 2;
+                            let W = 22;
+                            let inside = false;
+                            
+                            let S = 1.25;
+                            let testX = cx + (targetX - cx) / S;
+                            let testY = cy + (targetY - cy) / S;
+                            
+                            let sx = (testX - cx) / 80;
+                            let sy = -(testY - cy + 10) / 80;
+                            if (Math.pow(sx*sx + sy*sy - 1, 3) - sx*sx * Math.pow(sy, 3) <= 0) inside = true;
+                            
+                            if (!inside) {
+                                let ix = cx - 160;
+                                if (distToSeg(testX, testY, ix, cy-60, ix, cy+60) < W/2 ||
+                                    distToSeg(testX, testY, ix-20, cy-60, ix+20, cy-60) < W/2 ||
+                                    distToSeg(testX, testY, ix-20, cy+60, ix+20, cy+60) < W/2) inside = true;
+                            }
+                            if (!inside) {
+                                let yx = cx + 170;
+                                if (distToSeg(testX, testY, yx, cy, yx, cy+60) < W/2 ||
+                                    distToSeg(testX, testY, yx, cy, yx-30, cy-60) < W/2 ||
+                                    distToSeg(testX, testY, yx, cy, yx+30, cy-60) < W/2) inside = true;
+                            }
+                            if (!inside) {
+                                let ox = cx + 270;
+                                let odist = Math.hypot((testX - ox), (testY - cy)*0.6);
+                                if (odist > 25 && odist < 45) inside = true;
+                            }
+                            if (!inside) {
+                                let ux = cx + 370;
+                                if (distToSeg(testX, testY, ux-25, cy-60, ux-25, cy+30) < W/2 ||
+                                    distToSeg(testX, testY, ux+25, cy-60, ux+25, cy+30) < W/2 ||
+                                    distToSeg(testX, testY, ux-25, cy+30, ux, cy+60) < W/2 ||
+                                    distToSeg(testX, testY, ux+25, cy+30, ux, cy+60) < W/2) inside = true;
+                            }
+                            
+                            if (inside) break;
+                        }
+
+                        eggsArr.push({
+                            x: targetX + (Math.random() - 0.5) * 200,
+                            y: -50 - Math.random() * 100,
+                            targetX: targetX,
+                            targetY: targetY,
+                            type: 'normal',
+                            collected: false,
+                            value: 0,
+                            isBeingDragged: false,
+                            velX: 0,
+                            velY: 200 + Math.random() * 300,
+                            angle: 0,
+                            washed: false,
+                            stamped: false,
+                            scale: 2.0
+                        });
+                        window.cineEggsSpawned++;
+                    }
+                } else {
+                    let allLanded = eggsArr.length > 0 && eggsArr.every(e => e.velY === 0);
+                    if (allLanded) {
+                        window.cineFinishedTimer += dt;
+                        if (window.cineFinishedTimer > 2.0) {
+                            cinematicPhase = 4;
+                            cinematicTimer = 0;
+                        }
+                    }
+                }
+
+                eggsArr.forEach(e => {
+                    if (e.velY === 0) return;
+                    e.y += e.velY * dt;
+                    e.x += (e.targetX - e.x) * 4 * dt;
+                    if (e.y >= e.targetY) {
+                        e.y = e.targetY;
+                        e.x = e.targetX;
+                        e.velY = 0;
+                        e.velX = 0;
+                    }
+                });
+            }
+            
+            particlesArr.forEach(p => {
+                p.life -= dt;
+                p.y += p.velY * dt;
+            });
+            particlesArr = particlesArr.filter(p => p.life > 0);
+
+            // No global cutoff — each challenge manages its own end
         }
     }
 
@@ -4010,18 +4512,56 @@
                 if (gy < 65) gy += 65;
                 ctx.fillRect(gx, gy, 4, 4);
             }
-            chickensArr.forEach(c => {
+            let drawEntity = function(c, renderer) {
                 let _s = c.scale || 1.0;
-                if (_s !== 1.0) {
+                
+                if (c.angle) {
+                    c.hideShadow = true;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.fillRect(c.x - 10, c.y - 5, 20, 6);
+                }
+
+                if (_s !== 1.0 || c.angle) {
                     ctx.save();
                     ctx.translate(c.x, c.y);
+                    if (c.angle) ctx.rotate(c.angle);
                     ctx.scale(_s, _s);
                     ctx.translate(-c.x, -c.y);
-                    renderChicken(ctx, c);
+                    renderer(ctx, c);
                     ctx.restore();
                 } else {
-                    renderChicken(ctx, c);
+                    renderer(ctx, c);
                 }
+            };
+            let allCineEntities = [];
+            roostersArr.forEach(r => allCineEntities.push({e: r, r: renderRooster, isEgg: false}));
+            chickensArr.forEach(c => allCineEntities.push({e: c, r: renderChicken, isEgg: false}));
+            chicksArr.forEach(c => allCineEntities.push({e: c, r: renderChick, isEgg: false}));
+            eggsArr.forEach(e => allCineEntities.push({e: e, isEgg: true}));
+            
+            allCineEntities.sort((a, b) => (a.e.y - b.e.y) || (a.e.x - b.e.x));
+            
+            allCineEntities.forEach(item => {
+                if (item.isEgg) {
+                    if (item.e.scale && item.e.scale !== 1.0) {
+                        ctx.save(); ctx.translate(item.e.x, item.e.y); ctx.scale(item.e.scale, item.e.scale); ctx.translate(-item.e.x, -item.e.y);
+                        drawEgg(item.e);
+                        ctx.restore();
+                    } else drawEgg(item.e);
+                } else {
+                    drawEntity(item.e, item.r);
+                }
+            });
+            particlesArr.forEach(p => {
+                let renderY = p.y - 10;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+                ctx.fillStyle = p.color || '#fff';
+                ctx.font = `bold ${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#000'; ctx.shadowBlur = 2;
+                ctx.fillText(p.text, p.x, renderY);
+                ctx.restore();
             });
         };
 
@@ -4044,6 +4584,17 @@
             if (alpha > 0) {
                 ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
                 ctx.fillRect(0, 0, w, h);
+            }
+        } else if (cinematicPhase === 5) {
+            drawMeadow();
+            if (state.activeChallenge === 'adam' && window._dadKnockedDownTimer > 3.0) {
+                 let alpha = Math.min(1, (window._dadKnockedDownTimer - 3.0) / 2.0);
+                 ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                 ctx.fillRect(0,0,w,h);
+            } else if (state.activeChallenge === 'manual' && cinematicTimer > 10.0) {
+                 let alpha = Math.min(1, (cinematicTimer - 10.0) / 2.0);
+                 ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                 ctx.fillRect(0,0,w,h);
             }
         } else if (cinematicPhase === 4) {
             if (state.isSpeedrunMode) {
@@ -4073,11 +4624,11 @@
             ctx.shadowColor = '#000'; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = '20px "Press Start 2P"';
+            ctx.font = `${20 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             ctx.fillText('The MachinEGG', leftX + panelW / 2, panelY + 40);
 
             ctx.fillStyle = '#d4af37';
-            ctx.font = '8px "Press Start 2P"';
+            ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             ctx.fillText('Quantum Games Studio', leftX + panelW / 2, panelY + 65);
             ctx.fillStyle = '#00bbff';
             ctx.fillText('Made by JC.', leftX + panelW / 2, panelY + 80);
@@ -4087,11 +4638,17 @@
             ctx.fillStyle = '#444';
             ctx.fillRect(leftX + 30, panelY + 95, panelW - 60, 2);
 
-            ctx.font = '9px "Press Start 2P"';
+            ctx.font = `${9 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             let hrs = Math.floor((state.playTime || 0) / 3600);
             let mins = Math.floor(((state.playTime || 0) % 3600) / 60);
             let secs = Math.floor((state.playTime || 0) % 60);
             let timeStr = `${hrs}h ${mins}m ${secs}s`;
+
+            let chalStr = window.t ? window.t("chal1Title") : "1. NORMAL";
+            if (state.activeChallenge === 'speedrun' || state.isSpeedrunMode) chalStr = window.t ? window.t("chal2Title") : "4. SPEEDRUN";
+            else if (state.activeChallenge === 'adam') chalStr = window.t ? window.t("chal3Title") : "2. ADAM & EVE";
+            else if (state.activeChallenge === 'manual') chalStr = window.t ? window.t("chal4Title") : "3. EGG JAM";
+            chalStr = chalStr.replace(/^\d+\.\s*/, '');
 
             let lblX = leftX + panelW / 2 - 5;
             let valX = leftX + panelW / 2 + 5;
@@ -4099,38 +4656,41 @@
 
             ctx.textAlign = 'right';
             ctx.fillStyle = '#ccc';
-            ctx.fillText('Playtime:', lblX, sY);
-            ctx.fillText('Eggs Sold:', lblX, sY + 25);
-            ctx.fillText('Earnings:', lblX, sY + 50);
-            ctx.fillText('Chickens:', lblX, sY + 75);
+            ctx.fillText('Challenge:', lblX, sY);
+            ctx.fillText((window.t ? window.t("playtime") : "Playtime:"), lblX, sY + 30);
+            ctx.fillText((window.t ? window.t("eggsSold") : "Eggs Sold:"), lblX, sY + 60);
+            ctx.fillText((window.t ? window.t("earnings") : "Earnings:"), lblX, sY + 90);
+            ctx.fillText((window.t ? window.t("chickens") : "Chickens:"), lblX, sY + 120);
             ctx.fillStyle = '#e74c3c';
-            ctx.fillText('Dead:', lblX, sY + 100);
-            ctx.fillText('Hungry:', lblX, sY + 125);
+            ctx.fillText('Dead:', lblX, sY + 150);
+            ctx.fillText('Hungry:', lblX, sY + 180);
 
             ctx.textAlign = 'left';
+            ctx.fillStyle = '#d4af37';
+            ctx.fillText(chalStr, valX, sY);
             ctx.fillStyle = '#fff';
-            ctx.fillText(timeStr, valX, sY);
-            ctx.fillText(fmt(state.eggsSold), valX, sY + 25);
+            ctx.fillText(timeStr, valX, sY + 30);
+            ctx.fillText(fmt(state.eggsSold), valX, sY + 60);
             ctx.fillStyle = '#2ecc71';
-            ctx.fillText(fmtMoney(state.totalEarnings || state.money) + '$', valX, sY + 50);
+            ctx.fillText(fmtMoney(state.totalEarnings || state.money) + '$', valX, sY + 90);
             ctx.fillStyle = '#f39c12';
-            ctx.fillText(fmt(state.chickens), valX, sY + 75);
+            ctx.fillText(fmt(state.chickens), valX, sY + 120);
             ctx.fillStyle = '#e74c3c';
-            ctx.fillText(fmt(state.deadChickens || 0), valX, sY + 100);
-            ctx.fillText(fmt(state.chickensSuffered || 0), valX, sY + 125);
+            ctx.fillText(fmt(state.deadChickens || 0), valX, sY + 150);
+            ctx.fillText(fmt(state.chickensSuffered || 0), valX, sY + 180);
 
             let suffered = (state.chickensSuffered || 0) + (state.deadChickens || 0);
             if (suffered === 0) {
                 ctx.fillStyle = Date.now() % 1000 < 500 ? '#f1c40f' : '#f39c12';
-                ctx.font = '7px "Press Start 2P"';
+                ctx.font = `${7 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                 ctx.textAlign = 'center';
-                ctx.fillText("PERFECT! No chickens harmed.", leftX + panelW / 2, sY + 160);
+                ctx.fillText("PERFECT! No chickens harmed.", leftX + panelW / 2, sY + 210);
             }
 
             ctx.fillStyle = '#aaa';
             ctx.textAlign = 'center';
-            ctx.font = '8px "Press Start 2P"';
-            let blink = Date.now() % 1000 < 500 ? 'WIPE SAVE to play again' : '';
+            ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
+            let blink = Date.now() % 1000 < 500 ? 'Open CHALLENGES to play again' : '';
             ctx.fillText(blink, leftX + panelW / 2, panelY + panelH - 20);
 
             // ── RIGHT PANEL: Ranking ──
@@ -4147,7 +4707,7 @@
 
             ctx.shadowColor = '#000'; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
             ctx.fillStyle = '#f1c40f';
-            ctx.font = '14px "Press Start 2P"';
+            ctx.font = `${14 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
             ctx.textAlign = 'center';
             ctx.fillText('SPEEDRUN', rightX + rightPanelW / 2, panelY + 35);
             ctx.fillText('RANKING', rightX + rightPanelW / 2, panelY + 55);
@@ -4172,12 +4732,12 @@
             let rData = window._endRankData;
             let rY = panelY + 95;
             let rowH = 26;
-            let marketColors = { itchio: '#fa5c5c', newgrounds: '#fda238', galaxy: '#7c4dff', incrementaldb: '#00bcd4', crazygames: '#6c3fc5' };
-            let marketLabels = { itchio: 'ITCH.IO', newgrounds: 'NEWGROUNDS', galaxy: 'GALAXY', incrementaldb: 'INCREMENTAL DB', crazygames: 'CRAZYGAMES' };
+            let marketColors = { itchio: '#fa5c5c', newgrounds: '#fda238', galaxy: '#7c4dff', incrementaldb: '#00bcd4' };
+            let marketLabels = { itchio: 'ITCH.IO', newgrounds: 'NEWGROUNDS', galaxy: 'GALAXY', incrementaldb: 'INCREMENTAL DB' };
 
             if (!rData) {
                 ctx.fillStyle = '#888';
-                ctx.font = '8px "Press Start 2P"';
+                ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                 ctx.textAlign = 'center';
                 ctx.fillText('Loading...', rightX + rightPanelW / 2, rY + 50);
             } else {
@@ -4213,7 +4773,7 @@
 
                     // Position number
                     ctx.textAlign = 'left';
-                    ctx.font = '8px "Press Start 2P"';
+                    ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     ctx.fillStyle = posColors[i] || '#fff';
                     ctx.fillText(`${r.pos}.`, rightX + 16, centerY);
 
@@ -4227,19 +4787,19 @@
                     ctx.fillStyle = mktColor;
                     ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
                     ctx.fillStyle = '#fff';
-                    ctx.font = '6px "Press Start 2P"';
+                    ctx.font = `${6 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     let labelW = ctx.measureText(mktLabel).width;
                     ctx.fillText(mktLabel, badgeX + (badgeW - labelW) / 2, centerY);
 
                     // Name (after badge)
                     let nameX = badgeX + badgeW + 8;
-                    ctx.font = '10px "Press Start 2P"';
+                    ctx.font = `${10 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     ctx.fillStyle = '#fff';
                     ctx.fillText(r.name, nameX, centerY + 1); // +1 because 10px font optical center is slightly lower
 
                     // Time (MM:SS) aligned right
                     ctx.textAlign = 'right';
-                    ctx.font = '8px "Press Start 2P"';
+                    ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     ctx.fillStyle = '#e67e22';
                     ctx.fillText(formatTimeSecs(r.time_secs), rightX + rightPanelW - 16, centerY);
                 }
@@ -4261,7 +4821,7 @@
 
                     ctx.textBaseline = 'middle';
                     ctx.textAlign = 'left';
-                    ctx.font = '8px "Press Start 2P"';
+                    ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     ctx.fillStyle = '#fff';
                     ctx.fillText(`${playerPos}.`, rightX + 16, pCenterY);
 
@@ -4275,16 +4835,16 @@
                     ctx.fillStyle = pMktColor;
                     ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
                     ctx.fillStyle = '#fff';
-                    ctx.font = '6px "Press Start 2P"';
+                    ctx.font = `${6 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     let labelW = ctx.measureText(pMktLabel).width;
                     ctx.fillText(pMktLabel, badgeX + (badgeW - labelW) / 2, pCenterY);
 
                     ctx.textAlign = 'left';
-                    ctx.font = '10px "Press Start 2P"';
+                    ctx.font = `${10 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     ctx.fillText(playerName, badgeX + badgeW + 8, pCenterY + 1);
 
                     ctx.textAlign = 'right';
-                    ctx.font = '8px "Press Start 2P"';
+                    ctx.font = `${8 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                     ctx.fillStyle = '#e67e22';
                     ctx.fillText(formatTimeSecs(playerTime), rightX + rightPanelW - 16, pCenterY);
                 }
@@ -4310,7 +4870,7 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(cx - bw / 2, cy - bh / 2, bw, bh);
                 ctx.fillStyle = '#fff';
-                ctx.font = '10px "Press Start 2P"';
+                ctx.font = `${10 * (window.P2P_SCALE || 1)}px "${window.P2P_FONT || 'Press Start 2P'}"`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('PLAY SPEEDRUN (x2 VALUE)', cx, cy);
@@ -4348,9 +4908,6 @@
             console.warn("Storage quota exceeded or saving blocked. Continuing game without saving:", e);
         }
 
-        if (GAME_MARKET === "crazygames" && window.isCrazyGamesInitialized) {
-            try { window.CrazyGames.SDK.data.setItem('chickenIdleSave', saveString); } catch (e) { }
-        }
     }
 
     function loadState() {
@@ -4370,6 +4927,10 @@
 
                     // Retro-compatibility fixes for base costs changed in latest updates
                     if ((state.roosterLevel || 0) === 0) state.costs.rooster = 200;
+                    else if (state.roosterLevel === 1) state.costs.rooster = 5000;
+                    else if (state.roosterLevel === 2) state.costs.rooster = 100000;
+                    else if (state.roosterLevel === 3) state.costs.rooster = 500000;
+                    else if (state.roosterLevel === 4) state.costs.rooster = 2000000;
                     if ((state.growthLevel || 0) === 0) state.costs.growth = 1000;
                     if ((state.magnetLevel || 0) === 0) state.costs.magnet = 10;
                     if ((state.autoFoodLevel || 0) === 0) state.costs.autoFood = 1000;
@@ -4411,44 +4972,79 @@
                     localStorage.setItem('chickenIdleBeaten', 'true');
                     const rankBtnTemp = document.getElementById('ranking-btn');
                     const wipeBtnTemp = document.getElementById('wipe-btn');
-                    if (rankBtnTemp) rankBtnTemp.style.display = state.isSpeedrunMode ? 'flex' : 'none';
+                    if (rankBtnTemp) rankBtnTemp.style.display = 'inline-block';
                     if (wipeBtnTemp) wipeBtnTemp.style.display = 'none';
                     document.getElementById('shop').style.display = 'none';
                     canvas.width = 1140;
-                    cinematicPhase = 4;
-                    cinematicTimer = 10;
+                    canvas.style.aspectRatio = "1140 / 650";
+                    if (state.activeChallenge === 'adam' || state.activeChallenge === 'manual') {
+                        cinematicPhase = 5;
+                        cinematicTimer = 0;
+                        chickensArr = [];
+                        roostersArr = [];
+                        eggsArr = [];
+                        chicksArr = [];
+                        particlesArr = [];
+                        if (state.activeChallenge === 'adam') {
+                            for (let i = 0; i < 5; i++) {
+                                let r = createRooster();
+                                r.x = -120 - Math.random() * 30;
+                                r.y = 120 + Math.random() * 240;
+                                r.velX = 260;
+                                if (i === 4) {
+                                    r.isDad = true;
+                                    r.x = -150;
+                                    r.y = 320;
+                                }
+                                roostersArr.push(r);
+                            }
+                            for (let i = 0; i < 200; i++) {
+                                let c = createChick(0, 0);
+                                let speedVar = Math.random(); 
+                                c.runSpeed = 240 + speedVar * 40;
+                                c.x = -500 - (1.0 - speedVar) * 300 - Math.random() * 50; 
+                                c.y = 150 + Math.random() * 280;
+                                c.scale = 0.5 + Math.random() * 1.3;
+                                c.direction = 1;
+                                chicksArr.push(c);
+                            }
+                        }
+                    } else {
+                        cinematicPhase = 4;
+                        cinematicTimer = 10;
+                        
+                        let activeM = THE_END_MATRIX;
+                        if (state.isSpeedrunMode) {
+                            let mins = Math.floor((state.playTime || 0) / 60);
+                            let secs = Math.floor((state.playTime || 0) % 60);
+                            if (mins > 99) { mins = 99; secs = 59; }
+                            let timeLine = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+                            activeM = buildTextMatrix([timeLine]);
+                        }
 
-                    let activeM = THE_END_MATRIX;
-                    if (state.isSpeedrunMode) {
-                        let mins = Math.floor((state.playTime || 0) / 60);
-                        let secs = Math.floor((state.playTime || 0) % 60);
-                        if (mins > 99) { mins = 99; secs = 59; }
-                        let timeLine = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-                        activeM = buildTextMatrix([timeLine]);
-                    }
+                        chickensArr = [];
+                        let gridS = state.isSpeedrunMode ? 48 : 16;
+                        let minC = 9999, maxC = -1;
+                        activeM.forEach(r => { for (let c = 0; c < r.length; c++) { if (r[c] === 'X') { if (c < minC) minC = c; if (c > maxC) maxC = c; } } });
+                        let trueCols = (maxC - minC);
+                        let chickenW = state.isSpeedrunMode ? 50 : 20;
+                        let totalVisW = (trueCols * gridS) + chickenW;
+                        let visualStartX = Math.round((canvas.width - totalVisW) / 2) + (state.isSpeedrunMode ? 25 : 0);
+                        let sX = visualStartX - (minC * gridS);
+                        let sY = state.isSpeedrunMode ? 220 : 173;
 
-                    chickensArr = [];
-                    let gridS = state.isSpeedrunMode ? 48 : 16;
-                    let minC = 9999, maxC = -1;
-                    activeM.forEach(r => { for (let c = 0; c < r.length; c++) { if (r[c] === 'X') { if (c < minC) minC = c; if (c > maxC) maxC = c; } } });
-                    let trueCols = (maxC - minC);
-                    let chickenW = state.isSpeedrunMode ? 50 : 20;
-                    let totalVisW = (trueCols * gridS) + chickenW;
-                    let visualStartX = Math.round((canvas.width - totalVisW) / 2) + (state.isSpeedrunMode ? 25 : 0);
-                    let sX = visualStartX - (minC * gridS);
-                    let sY = state.isSpeedrunMode ? 220 : 173;
-
-                    for (let r = 0; r < activeM.length; r++) {
-                        for (let c = 0; c < activeM[r].length; c++) {
-                            if (activeM[r][c] === 'X') {
-                                let tx = sX + (c * gridS);
-                                let ty = sY + (r * gridS);
-                                chickensArr.push({
-                                    x: tx, y: ty, targetX: tx, targetY: ty,
-                                    velX: 0, velY: 0, direction: 1, action: 'roam',
-                                    color: Math.random() < 0.5 ? '#ffffff' : ['#dcc5a4', '#8b5a2b', '#444444'][Math.floor(Math.random() * 3)],
-                                    scale: state.isSpeedrunMode ? 2.5 : 1.0
-                                });
+                        for (let r = 0; r < activeM.length; r++) {
+                            for (let c = 0; c < activeM[r].length; c++) {
+                                if (activeM[r][c] === 'X') {
+                                    let tx = sX + (c * gridS);
+                                    let ty = sY + (r * gridS);
+                                    chickensArr.push({
+                                        x: tx, y: ty, targetX: tx, targetY: ty,
+                                        velX: 0, velY: 0, direction: 1, action: 'roam',
+                                        color: Math.random() < 0.5 ? '#ffffff' : ['#dcc5a4', '#8b5a2b', '#444444'][Math.floor(Math.random() * 3)],
+                                        scale: state.isSpeedrunMode ? 2.5 : 1.0
+                                    });
+                                }
                             }
                         }
                     }
@@ -4471,11 +5067,63 @@
         if (localStorage.getItem('chickenIdleSpeedrun') === 'true') {
             state.isSpeedrunMode = true;
         }
+
+        state.activeChallenge = localStorage.getItem('activeChallenge') || 'vanilla';
+
+        // Adam & Eve initial spawn logic
+        if (state.activeChallenge === 'adam' && !state.hasRetired && state.chickens === 0 && !state.hasRooster && chickensArr.length === 0) {
+            state.chickens = 1;
+            state.hasRooster = true;
+            state.roosterLevel = 1;
+            state.costs.rooster = 5000;
+            
+            // Reales en la granja
+            let firstHen = createChicken();
+            firstHen.x = 200; firstHen.y = 350;
+            chickensArr.push(firstHen);
+            
+            let firstRooster = createRooster();
+            firstRooster.x = 100; firstRooster.y = 350;
+            roostersArr.push(firstRooster);
+        }
     }
 
     let currentFps = 0;
     let framesThisSecond = 0;
     let lastFpsTime = 0;
+
+    window.isAdPaused = false;
+    window.adMobInitialized = false;
+    
+    async function triggerMidgameAd() {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob) {
+            if (!window.adMobInitialized) {
+                try {
+                    await window.Capacitor.Plugins.AdMob.initialize({
+                        initializeForTesting: true // FORZAMOS MODO PRUEBA POR SEGURIDAD
+                    });
+                    window.adMobInitialized = true;
+                } catch(e) { console.log("AdMob init failed", e); }
+            }
+
+            window.isAdPaused = true;
+            if (!bgmTheme.paused) bgmTheme.pause();
+            
+            try {
+                // ID REAL del usuario, pero en modo prueba gracias a initializeForTesting
+                await window.Capacitor.Plugins.AdMob.prepareInterstitial({ adId: 'ca-app-pub-0483485148459925/4026347862' });
+                await window.Capacitor.Plugins.AdMob.showInterstitial();
+            } catch(e) {
+                console.log("AdMob failed to show:", e);
+            }
+            
+            window.isAdPaused = false;
+            updateBGM(); // Resume music
+        } else {
+            // Web environment (Itch.io) -> Ignore silently
+            console.log("Web mode: AdMob Interstitial skipped.");
+        }
+    }
 
     function loop(timestamp) {
         if (!lastFpsTime) lastFpsTime = timestamp;
@@ -4529,96 +5177,12 @@
         }
     }
 
-    // CrazyGames SDK Initialization, Cloud Save & Tracking
-    window.isCrazyGamesInitialized = false;
-
-    window.forceAd = function () { triggerMidgameAd("CONSOLD AD..."); };
-    function triggerMidgameAd(subtitleText) {
-        window.isAdPaused = true;
-        let overlay = document.getElementById('ad-overlay');
-        let title = document.getElementById('ad-title');
-        let subtitle = document.getElementById('ad-subtitle');
-
-        if (!overlay) return;
-
-        if (!bgmTheme.paused) bgmTheme.pause();
-
-        overlay.style.display = 'flex';
-        subtitle.innerText = subtitleText;
-        title.innerText = "Ad Loading...";
-
-        const callbacks = {
-            adFinished: () => {
-                window.isAdPaused = false;
-                overlay.style.display = 'none';
-                updateBGM();
-            },
-            adError: (error) => {
-                window.isAdPaused = false;
-                overlay.style.display = 'none';
-                console.warn("CrazyGames Ad error", error);
-                updateBGM();
-            },
-            adStarted: () => {
-                console.log("CrazyGames Ad started");
-                title.innerText = "Playing Ad...";
-            }
-        };
-
-        if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.ad) {
-            try {
-                window.CrazyGames.SDK.ad.requestAd('midgame', callbacks);
-            } catch (e) {
-                callbacks.adError(e);
-            }
-        } else {
-            console.warn("CrazyGames SDK ad module not found.");
-            callbacks.adError("SDK Missing");
-        }
-    }
-
-    if (GAME_MARKET === "crazygames" && window.CrazyGames) {
-        window.CrazyGames.SDK.init().then(async () => {
-            window.isCrazyGamesInitialized = true;
-            try {
-                window.CrazyGames.SDK.game.loadingStart();
-                let cloudSave = await window.CrazyGames.SDK.data.getItem('chickenIdleSave');
-                if (cloudSave && cloudSave !== 'null' && cloudSave !== 'undefined') {
-                    localStorage.setItem('chickenIdleSave', cloudSave);
-                }
-            } catch (e) {
-                console.warn("CrazyGames Data Module Fallback (Local/Itch.io):", e);
-            }
-
-            loadState();
-            drawUIIcons();
-            updateUI();
-
-            try {
-                window.CrazyGames.SDK.game.loadingStop();
-                window.CrazyGames.SDK.game.gameplayStart();
-            } catch (e) { }
-
-            let __loader = document.getElementById('loading-screen');
-            if (__loader) __loader.style.display = 'none';
-            requestAnimationFrame(loop);
-        }).catch(err => {
-            console.warn("CrazyGames SDK Offline/Itchio Fallback:", err);
-            loadState();
-            drawUIIcons();
-            updateUI();
-            let __loader = document.getElementById('loading-screen');
-            if (__loader) __loader.style.display = 'none';
-            requestAnimationFrame(loop);
-        });
-    } else {
-        loadState();
-        drawUIIcons();
-        updateUI();
-        let __loader = document.getElementById('loading-screen');
-        if (__loader) __loader.style.display = 'none';
-        requestAnimationFrame(loop);
-    }
+    loadState();
+    drawUIIcons();
+    updateUI();
+    let __loader = document.getElementById('loading-screen');
+    if (__loader) __loader.style.display = 'none';
+    requestAnimationFrame(loop);
 
     // Info Toggle Logic
     window.infoMode = window.infoMode || false;
@@ -4711,7 +5275,7 @@
     }
 
     // Speedrun Menu Logic
-    const RANKING_API_URL = 'https://mytoollocker.com/apps/themachinegg';
+    const RANKING_API_URL = 'https://themachinegg.com/server';
 
     let myPin = localStorage.getItem('chickenIdleSpeedrunPin');
     if (!myPin) {
@@ -4733,11 +5297,15 @@
         fetch(RANKING_API_URL + '/get_ranking.php?pin=' + encodeURIComponent(myPin))
             .then(r => r.json())
             .then(data => {
-                if (!data.ok) { if (statusEl) statusEl.innerText = 'Error loading ranking'; return; }
+                if (!data.ok) { 
+                    if (statusEl) statusEl.innerText = 'Error loading ranking'; 
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#e74c3c; padding:20px;">Could not load records</td></tr>';
+                    return; 
+                }
                 if (statusEl) statusEl.innerText = `Global Ranking — Top ${data.ranking.length}`;
                 if (!tbody) return;
-                let marketColors = { itchio: '#fa5c5c', newgrounds: '#fda238', galaxy: '#7c4dff', incrementaldb: '#00bcd4', crazygames: '#6c3fc5' };
-                let marketLabels = { itchio: 'ITCH.IO', newgrounds: 'NEWGROUNDS', galaxy: 'GALAXY', incrementaldb: 'INCREMENTAL DB', crazygames: 'CRAZYGAMES' };
+                let marketColors = { itchio: '#fa5c5c', newgrounds: '#fda238', galaxy: '#7c4dff', incrementaldb: '#00bcd4', googleplay: '#34a853' };
+                let marketLabels = { itchio: 'ITCH.IO', newgrounds: 'NEWGROUNDS', galaxy: 'GALAXY', incrementaldb: 'INCREMENTAL DB', googleplay: 'GOOGLE PLAY' };
                 let posColors = ['#f1c40f', '#bdc3c7', '#cd7f32'];
                 tbody.innerHTML = '';
 
@@ -4773,7 +5341,10 @@
                     tbody.appendChild(tr);
                 }
             })
-            .catch(() => { if (statusEl) statusEl.innerText = 'Could not connect to server'; });
+            .catch(() => { 
+                if (statusEl) statusEl.innerText = 'Could not connect to server'; 
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#e74c3c; padding:20px;">Connection failed</td></tr>';
+            });
     }
 
     const rankingBtn = document.getElementById('ranking-btn');
@@ -4787,12 +5358,68 @@
 
     if (rankingBtn) {
         rankingBtn.addEventListener('click', () => {
-            if (rankingOverlay) rankingOverlay.style.display = 'flex';
+            window.gamePaused = true;
+            if (!window.isMusicMuted && !bgmTheme.paused) {
+                bgmTheme.pause();
+            }
+            if (rankingOverlay) {
+                rankingOverlay.style.display = 'flex';
+                
+                // Cargar medallas
+                if (localStorage.getItem('chickenIdleBeatenVanilla') === 'true' || localStorage.getItem('chickenIdleBeaten') === 'true') {
+                    document.getElementById('check-chal-1').style.display = 'block';
+                }
+                if (localStorage.getItem('chickenIdleBeatenSpeedrun') === 'true') {
+                    document.getElementById('check-chal-2').style.display = 'block';
+                }
+                if (localStorage.getItem('chickenIdleBeatenAdam') === 'true') {
+                    document.getElementById('check-chal-3').style.display = 'block';
+                }
+                if (localStorage.getItem('chickenIdleBeatenManual') === 'true') {
+                    const check4 = document.getElementById('check-chal-4');
+                    if (check4) check4.style.display = 'block';
+                }
+
+                const fmtPB = (s) => {
+                    let h = Math.floor(s / 3600);
+                    let m = Math.floor((s % 3600) / 60);
+                    let sc = Math.floor(s % 60);
+                    let mStr = m.toString().padStart(2, '0');
+                    let scStr = sc.toString().padStart(2, '0');
+                    return `${h > 0 ? h + ':' : ''}${mStr}:${scStr}`;
+                };
+                
+                let pbs = [
+                    { key: 'pb_vanilla', id: 'pb-vanilla' },
+                    { key: 'pb_speedrun', id: 'pb-speedrun' },
+                    { key: 'pb_adam', id: 'pb-adam' },
+                    { key: 'pb_manual', id: 'pb-manual' }
+                ];
+                
+                pbs.forEach(pb => {
+                    let val = localStorage.getItem(pb.key);
+                    if (val) {
+                        let el = document.getElementById(pb.id);
+                        if (el) {
+                            el.style.display = 'block';
+                            el.innerText = 'Best: ' + fmtPB(parseFloat(val));
+                        }
+                    }
+                });
+
+                if (document.getElementById('speedrun-start-btn')) document.getElementById('speedrun-start-btn').disabled = false;
+                if (document.getElementById('adam-mode-btn')) document.getElementById('adam-mode-btn').disabled = false;
+            }
             fetchRanking();
         });
     }
     if (rankingCloseBtn) {
         rankingCloseBtn.addEventListener('click', () => {
+            window.gamePaused = false;
+            lastTime = performance.now(); // reset delta to prevent time jump
+            if (!window.isMusicMuted && !window.isBgmMuted && state.musicLevel > 0 && window.audioEnabled !== false) {
+                bgmTheme.play().catch(()=>{});
+            }
             if (rankingOverlay) rankingOverlay.style.display = 'none';
         });
     }
@@ -4803,6 +5430,7 @@
             if (rankingOverlay) rankingOverlay.style.display = 'none';
             pendingModeAction = async () => {
                 localStorage.setItem('chickenIdleSpeedrun', 'true');
+                localStorage.removeItem('activeChallenge');
             };
             document.getElementById('wipe-confirm-overlay').style.display = 'flex';
         });
@@ -4812,6 +5440,31 @@
             if (rankingOverlay) rankingOverlay.style.display = 'none';
             pendingModeAction = async () => {
                 localStorage.removeItem('chickenIdleSpeedrun');
+                localStorage.removeItem('activeChallenge');
+            };
+            document.getElementById('wipe-confirm-overlay').style.display = 'flex';
+        });
+    }
+
+    const adamModeBtn = document.getElementById('adam-mode-btn');
+    if (adamModeBtn) {
+        adamModeBtn.addEventListener('click', () => {
+            if (rankingOverlay) rankingOverlay.style.display = 'none';
+            pendingModeAction = async () => {
+                localStorage.removeItem('chickenIdleSpeedrun');
+                localStorage.setItem('activeChallenge', 'adam');
+            };
+            document.getElementById('wipe-confirm-overlay').style.display = 'flex';
+        });
+    }
+
+    const fourthModeBtn = document.getElementById('fourth-mode-btn');
+    if (fourthModeBtn) {
+        fourthModeBtn.addEventListener('click', () => {
+            if (rankingOverlay) rankingOverlay.style.display = 'none';
+            pendingModeAction = async () => {
+                localStorage.removeItem('chickenIdleSpeedrun');
+                localStorage.setItem('activeChallenge', 'manual');
             };
             document.getElementById('wipe-confirm-overlay').style.display = 'flex';
         });
@@ -4916,7 +5569,13 @@
                     gameTooltip.style.display = 'none';
                     return;
                 }
-                const title = btn.getAttribute('data-title') || btn.getAttribute('title');
+                let title = btn.getAttribute('data-title') || btn.getAttribute('title');
+                if (btn.id === 'buy-magnet' && state.activeChallenge === 'manual' && title) {
+                    const manualCaps = [1, 2, 4, 6, 8, 10, 15, 20, 30, 50, 75, 100, 150];
+                    let lvl = state.magnetLevel || 0;
+                    let diff = (lvl < 12) ? (manualCaps[lvl + 1] - manualCaps[lvl]) : 0;
+                    title = title.replace('+5px', '+6px').replace('+1 ', '+' + diff + ' ');
+                }
                 if (title) {
                     gameTooltip.innerHTML = title;
                     gameTooltip.style.display = 'block';
@@ -4940,11 +5599,9 @@
 
     // Logic for Steam Wishlist Button
     const steamWishlistBtn = document.getElementById('steam-btn');
-    if (steamWishlistBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds" || GAME_MARKET === "crazygames")) {
+    if (steamWishlistBtn && (GAME_MARKET === "itchio" || GAME_MARKET === "galaxy" || GAME_MARKET === "newgrounds" || GAME_MARKET === "googleplay")) {
         steamWishlistBtn.href = `https://store.steampowered.com/app/4563810/The_MachinEGG/?utm_source=G1_${GAME_MARKET.toUpperCase()}`;
-        if (GAME_MARKET !== "crazygames") {
-            steamWishlistBtn.style.display = 'block';
-        }
+        steamWishlistBtn.style.display = 'block';
     }
     // One-time check for legacy 1.0.5 players
     if (!localStorage.getItem('legacyCheckDone')) {
@@ -4974,7 +5631,12 @@
 
         let lastName = localStorage.getItem('chickenIdleLastName') || '';
 
-        // Fire silently
+        let beatenList = [];
+        ['pb_vanilla', 'pb_speedrun', 'pb_adam', 'pb_manual'].forEach(k => {
+            if (localStorage.getItem(k)) beatenList.push(k.replace('pb_', ''));
+        });
+        let currentMode = state.isSpeedrunMode ? 'speedrun' : (state.activeChallenge || 'vanilla');
+
         fetch(RANKING_API_URL + '/sync_stats.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4985,7 +5647,11 @@
                 total_playtime_secs: globalPlaytimeTracker,
                 money: state.money,
                 chickens: state.maxChickens || state.chickens || 0,
-                has_retired: localStorage.getItem('chickenIdleBeaten') === 'true'
+                has_retired: localStorage.getItem('chickenIdleBeaten') === 'true',
+                active_mode: currentMode,
+                beaten_count: beatenList.length,
+                beaten_list: beatenList.join(','),
+                lang: currentLang
             })
         }).catch(() => { });
     }
@@ -4997,18 +5663,18 @@
     let hasBeatenGame = localStorage.getItem('chickenIdleBeaten');
     let rankBtnInit = document.getElementById('ranking-btn');
     let wipeBtnInit = document.getElementById('wipe-btn');
-    if (rankBtnInit && (hasBeatenGame || state.isSpeedrunMode)) {
+    if (rankBtnInit) {
         rankBtnInit.style.display = 'inline-block';
+    }
+    if (hasBeatenGame || state.isSpeedrunMode) {
         if (wipeBtnInit) wipeBtnInit.style.display = 'none';
     }
 
     // Emergency shortcut
     window.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'r') {
-            if (rankBtnInit) rankBtnInit.style.display = 'inline-block';
-            if (wipeBtnInit) wipeBtnInit.style.display = 'none';
-            localStorage.setItem('chickenIdleBeaten', 'true');
-        }
+
+
+
         if (e.key.toLowerCase() === 'x') {
             if (confirm("WARNING! Are you sure you want to WIPE your save and play NORMAL MODE?")) {
                 localStorage.setItem('chickenIdleSpeedrun', 'false');

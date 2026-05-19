@@ -6,14 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The MachinEGG</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #629c1d; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column;">
-        <h1 style="color: white; font-family: 'Press Start 2P', monospace; font-size: 28px; text-shadow: 2px 2px 0 #333; margin-bottom: 20px;">LOADING...</h1>
-        <p style="color: white; font-family: 'Press Start 2P', monospace; font-size: 10px; opacity: 0.8;">Starting Farm</p>
+        <h1 style="color: white; font-family: 'Press Start 2P', monospace; font-size: 28px; text-shadow: 2px 2px 0 #333; margin-bottom: 20px;"><span data-i18n="loading">LOADING...</span></h1>
+        <p style="color: white; font-family: 'Press Start 2P', monospace; font-size: 10px; opacity: 0.8;"><span data-i18n="startingFarm">Starting Farm</span></p>
     </div>
     <div id="game-container">
         <!-- TOP BAR -->
@@ -26,11 +25,10 @@
                 </p>
             </div>
             <div class="stats">
-                <p>Money: <span id="money">0</span>$</p>
+                <p><span data-i18n="money">Money: </span><span id="money">0</span>$</p>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <button id="ranking-btn" class="pixel-btn" style="display: none; background: #f1c40f; color: #333; font-size: 10px; padding: 10px;">RANKING</button>
-                <button id="wipe-btn" class="pixel-btn" style="background: #e74c3c; color: white;">WIPE SAVE</button>
+                <button id="ranking-btn" class="pixel-btn" style="background: #f1c40f; color: #333; font-size: 10px; padding: 10px;" data-i18n="challenges">CHALLENGES</button>
             </div>
         </header>
 
@@ -41,190 +39,255 @@
 
             <aside id="shop">
                 <div id="shop-header" style="flex-shrink: 0; display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 12px; border-bottom: 2px dashed #8d6e63; padding-bottom: 10px;">
-                    <h2 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">Shop</h2>
-                    <button id="mute-btn" class="pixel-btn" style="position: absolute; left: 0; padding: 2px; font-size: 12px; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; border-width: 2px;" title="Toggle Music">🎵</button>
-                    <button id="pause-btn" class="pixel-btn" style="position: absolute; left: 30px; padding: 2px; font-size: 12px; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; border-width: 2px;" title="Pause Game">II</button>
+                    <h2 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;" data-i18n="shopTitle">Shop</h2>
+                    <button id="mute-btn" class="pixel-btn" style="position: absolute; left: 0; padding: 2px; font-size: 12px; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; border-width: 2px;">🎵</button>
+                    <button id="pause-btn" class="pixel-btn" style="position: absolute; left: 30px; padding: 2px; font-size: 14px; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; border-width: 2px; line-height: 1;">☰</button>
                     <button id="toggle-info-btn" class="pixel-btn" style="position: absolute; right: 0; padding: 2px; font-size: 14px; border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; border-width: 2px;">i</button>
                 </div>
                 <div id="shop-scroll">
-                <button id="buy-chicken" class="shop-btn" data-title="A new laying friend. (+1 Chicken)">
-                    <span>Buy Chicken</span>
+                <button id="buy-chicken" class="shop-btn" data-i18n-title="buyChickenDesc" data-title="A new laying friend. (+1 Chicken)">
+                    <span data-i18n="buyChicken">Buy Chicken</span>
                     <span id="cost-chicken">0$</span>
                 </button>
-                <button id="buy-petting" class="shop-btn" style="display:none;" data-title="Happy Petting: Pet your chickens to make them happy. Each pet reduces the time it takes to lay an egg. (-1.0s Lay Time per pet)">
-                    <span>Happy Petting</span>
+                <button id="buy-petting" class="shop-btn" style="display:none;" data-i18n-title="happyPettingDesc" data-title="Happy Petting: Pet your chickens to make them happy. Each pet reduces the time it takes to lay an egg. (-1.0s Lay Time per pet)">
+                    <span data-i18n="happyPetting">Happy Petting</span>
                     <span id="cost-petting">2$</span>
                 </button>
-                <button id="buy-basevalue" class="shop-btn" data-title="Enhances the innate quality of all eggs. (x1.5 Base Value)">
-                    <span>Egg Value</span>
+                <button id="buy-basevalue" class="shop-btn" data-i18n-title="eggValueDesc" data-title="Enhances the innate quality of all eggs. (x1.5 Base Value)">
+                    <span data-i18n="eggValue">Egg Value</span>
                     <span id="cost-basevalue">20$</span>
                 </button>
-                <button id="buy-ramp" class="shop-btn" style="display:none;" data-title="Adds a wooden wedge to bounce falling eggs cleanly onto the underground belt. (Voted the most useless upgrade)">
-                    <span>Egg Ramp</span>
+                <button id="buy-ramp" class="shop-btn" style="display:none;" data-i18n-title="eggRampDesc" data-title="Adds a wooden wedge to bounce falling eggs cleanly onto the underground belt. (Voted the most useless upgrade)">
+                    <span data-i18n="eggRamp">Egg Ramp</span>
                     <span id="cost-ramp">4$</span>
                 </button>
-                <button id="buy-maxfood" class="shop-btn" style="display:none;" data-title="Expands trough capacity.">
-                    <span>Max Food</span>
+                <button id="buy-maxfood" class="shop-btn" style="display:none;" data-i18n-title="maxFoodDesc" data-title="Expands trough capacity.">
+                    <span data-i18n="maxFood">Max Food</span>
                     <span id="cost-maxfood">500$</span>
                 </button>
-                <button id="buy-maxwater" class="shop-btn" style="display:none;" data-title="Expands water basin capacity.">
-                    <span>Max Water</span>
+                <button id="buy-maxwater" class="shop-btn" style="display:none;" data-i18n-title="maxWaterDesc" data-title="Expands water basin capacity.">
+                    <span data-i18n="maxWater">Max Water</span>
                     <span id="cost-maxwater">500$</span>
                 </button>
-                <button id="buy-washer" class="shop-btn" style="display:none;" data-title="Cleans eggs to dramatically increase their market value. (x2 Value Multiplier)">
-                    <span>Egg Washer</span>
+                <button id="buy-washer" class="shop-btn" style="display:none;" data-i18n-title="eggWasherDesc" data-title="Cleans eggs to dramatically increase their market value. (x2 Value Multiplier)">
+                    <span data-i18n="eggWasher">Egg Washer</span>
                     <span id="cost-washer">1000$</span>
                 </button>
-                <button id="buy-autofood" class="shop-btn" data-title="Automates food refilling.">
-                    <span>Auto-Food</span>
+                <button id="buy-autofood" class="shop-btn" data-i18n-title="autoFoodDesc" data-title="Automates food refilling.">
+                    <span data-i18n="autoFood">Auto-Food</span>
                     <span id="cost-autofood">1000$</span>
                 </button>
-                <button id="buy-autowater" class="shop-btn" data-title="Automates water refilling.">
-                    <span>Auto-Water</span>
+                <button id="buy-autowater" class="shop-btn" data-i18n-title="autoWaterDesc" data-title="Automates water refilling.">
+                    <span data-i18n="autoWater">Auto-Water</span>
                     <span id="cost-autowater">1000$</span>
                 </button>
-                <button id="buy-autocollect" class="shop-btn" style="display:none;" data-title="Automatically transports meadow eggs below.">
-                    <span>Farm Belt</span>
+                <button id="buy-autocollect" class="shop-btn" style="display:none;" data-i18n-title="farmBeltDesc" data-title="Automatically transports meadow eggs below.">
+                    <span data-i18n="farmBelt">Farm Belt</span>
                     <span id="cost-autocollect">25$</span>
                 </button>
-                <button id="buy-autosell" class="shop-btn" style="display:none;" data-title="Automatically transports stored eggs to market.">
-                    <span>Storage Belt</span>
+                <button id="buy-autosell" class="shop-btn" style="display:none;" data-i18n-title="storageBeltDesc" data-title="Automatically transports stored eggs to market.">
+                    <span data-i18n="storageBelt">Storage Belt</span>
                     <span id="cost-autosell">100$</span>
                 </button>
 
-                <button id="buy-refill" class="shop-btn" data-title="Boosts manual interaction power.">
-                    <span>Refill</span>
+                <button id="buy-refill" class="shop-btn" data-i18n-title="refillDesc" data-title="Boosts manual interaction power.">
+                    <span data-i18n="refill">Refill</span>
                     <span id="cost-refill">1000$</span>
                 </button>
-                <button id="buy-premium" class="shop-btn" data-title="A chance to lay high-quality premium eggs. (+5% Chance / x2 Value)">
-                    <span>Premium Feed (+5%)</span>
+                <button id="buy-premium" class="shop-btn" data-i18n-title="premiumFeedDesc" data-title="A chance to lay high-quality premium eggs. (+5% Chance / x2 Value)">
+                    <span data-i18n="premiumFeed">Premium Feed (+5%)</span>
                     <span id="cost-premium">2500$</span>
                 </button>
-                <button id="buy-golden" class="shop-btn" data-title="A rare chance to lay legendary golden eggs. (+1% Chance / x5 Value)">
-                    <span>Golden Egg (+1%)</span>
+                <button id="buy-golden" class="shop-btn" data-i18n-title="goldenEggDesc" data-title="A rare chance to lay legendary golden eggs. (+1% Chance / x5 Value)">
+                    <span data-i18n="goldenEgg">Golden Egg (+1%)</span>
                     <span id="cost-golden">50000$</span>
                 </button>
 
-                <button id="buy-stamper" class="shop-btn" data-title="Certifies egg quality for a higher market price. (x2 Value Multiplier)">
-                    <span>Quality Stamp</span>
+                <button id="buy-stamper" class="shop-btn" data-i18n-title="qualityStampDesc" data-title="Certifies egg quality for a higher market price. (x2 Value Multiplier)">
+                    <span data-i18n="qualityStamp">Quality Stamp</span>
                     <span id="cost-stamper">15000$</span>
                 </button>
-                <button id="buy-packager" class="shop-btn" data-title="Boxes eggs in dozens for massive profits. (x2 Value Multiplier)">
-                    <span>Egg Packager</span>
+                <button id="buy-packager" class="shop-btn" data-i18n-title="eggPackagerDesc" data-title="Boxes eggs in dozens for massive profits. (x2 Value Multiplier)">
+                    <span data-i18n="eggPackager">Egg Packager</span>
                     <span id="cost-packager">100000$</span>
                 </button>
-                <button id="buy-ribbon" class="shop-btn" data-title="Wraps your eggs in luxurious matte black and gold foil packaging. (x2 Value Multiplier)">
-                    <span>Premium Box</span>
+                <button id="buy-ribbon" class="shop-btn" data-i18n-title="premiumBoxDesc" data-title="Wraps your eggs in luxurious matte black and gold foil packaging. (x2 Value Multiplier)">
+                    <span data-i18n="premiumBox">Premium Box</span>
                     <span id="cost-ribbon">600000$</span>
                 </button>
-                <button id="buy-music" class="shop-btn" data-title="Plays upbeat tunes, making chickens move faster. (+15% Speed)">
-                    <span>Farm Music</span>
+                <button id="buy-music" class="shop-btn" data-i18n-title="farmMusicDesc" data-title="Plays upbeat tunes, making chickens move faster. (+15% Speed)">
+                    <span data-i18n="farmMusic">Farm Music</span>
                     <span id="cost-music">500$</span>
                 </button>
-                <button id="buy-diet" class="shop-btn" data-title="Specialized nutrition that speeds up egg laying. (-1.0s Lay Time)">
-                    <span>Pro Diet</span>
+                <button id="buy-diet" class="shop-btn" data-i18n-title="proDietDesc" data-title="Specialized nutrition that speeds up egg laying. (-1.0s Lay Time)">
+                    <span data-i18n="proDiet">Pro Diet</span>
                     <span id="cost-diet">1500$</span>
                 </button>
-                <button id="buy-batch" class="shop-btn" data-title="Eats x2 food and lays twice as many eggs between meals.">
-                    <span>Dessert Stomach</span>
+                <button id="buy-batch" class="shop-btn" data-i18n-title="dessertStomachDesc" data-title="Eats x2 food and lays twice as many eggs between meals.">
+                    <span data-i18n="dessertStomach">Dessert Stomach</span>
                     <span id="cost-batch">30000$</span>
                 </button>
-                <button id="buy-magnet" class="shop-btn" data-title="Magnetizes your cursor to grab more eggs at a distance. (+5px Radius / +1 Capacity)">
-                    <span>Magnet Force</span>
+                <button id="buy-magnet" class="shop-btn" data-i18n-title="magnetForceDesc" data-title="Magnetizes your cursor to grab more eggs at a distance. (+5px Radius / +1 Capacity)">
+                    <span data-i18n="magnetForce">Magnet Force</span>
                     <span id="cost-magnet">5$</span>
                 </button>
-                <button id="buy-rooster" class="shop-btn" data-title="A majestic companion. Helps grow your flock over time. (Spawns 1 chick periodically)">
-                    <span>The Rooster</span>
+                <button id="buy-rooster" class="shop-btn" data-i18n-title="theRoosterDesc" data-title="A majestic companion. Helps grow your flock over time. (Spawns 1 chick periodically)">
+                    <span data-i18n="theRooster">The Rooster</span>
                     <span id="cost-rooster">200$</span>
                 </button>
-                <button id="buy-growth" class="shop-btn" style="display:none;" data-title="Speeds up the time it takes a chick to mature into a laying hen. (-10s Maturation Time)">
-                    <span>Growth Formula</span>
+                <button id="buy-growth" class="shop-btn" style="display:none;" data-i18n-title="growthFormulaDesc" data-title="Speeds up the time it takes a chick to mature into a laying hen. (-10s Maturation Time)">
+                    <span data-i18n="growthFormula">Growth Formula</span>
                     <span id="cost-growth">1000$</span>
                 </button>
-                <button id="buy-tvAd" class="shop-btn" style="display:none;" data-title="As Seen On TV: A commercial about your farm goes viral. Permanently doubles the sale value of all eggs! (x2 Value Multiplier)">
-                    <span>As Seen On TV</span>
+                <button id="buy-tvAd" class="shop-btn" style="display:none;" data-i18n-title="asSeenOnTVDesc" data-title="As Seen On TV: A commercial about your farm goes viral. Permanently doubles the sale value of all eggs! (x2 Value Multiplier)">
+                    <span data-i18n="asSeenOnTV">As Seen On TV</span>
                     <span id="cost-tvAd">100.000.000$</span>
                 </button>
                 <button id="buy-retire" class="shop-btn" style="background: #f39c12; color: white; border-color: #e67e22;">
-                    <span>Retire</span>
+                    <span data-i18n="retire">Retire</span>
                     <span id="cost-retire">1.000.000.000$</span>
                 </button>
                 </div><!-- end shop-scroll -->
                 
                 <!-- STEAM WISHLIST BUTTON -->
-                <a id="steam-btn" href="https://store.steampowered.com/app/4563810/The_MachinEGG/" target="_blank" class="pixel-btn" style="display: none; text-align: center; background: #f39c12; color: white; border-color: #e67e22; text-decoration: none; font-size: 10px; margin-top: 10px; flex-shrink: 0; padding: 12px; line-height: 1.5; font-weight: bold; animation: retire-pulse 2s ease-in-out infinite;">WISHLIST ON STEAM!</a>
+                <a id="steam-btn" href="https://store.steampowered.com/app/4563810/The_MachinEGG/" target="_blank" class="pixel-btn" style="display: none; text-align: center; background: #f39c12; color: white; border-color: #e67e22; text-decoration: none; font-size: 10px; margin-top: 10px; flex-shrink: 0; padding: 12px; line-height: 1.5; font-weight: bold; animation: retire-pulse 2s ease-in-out infinite;" data-i18n="wishlistOnSteam">WISHLIST ON STEAM!</a>
             </aside>
         </main>
     </div>
     <div id="game-tooltip"></div>
     <div id="ad-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
         <h1 id="ad-title" style="color: white; font-family: 'Press Start 2P', monospace; font-size: 48px; text-shadow: 4px 4px 0 #333; margin-bottom: 20px; text-align: center;">3...</h1>
-        <p id="ad-subtitle" style="color: #f1c40f; font-family: 'Press Start 2P', monospace; font-size: 16px; text-align: center;">Take a break...</p>
+        <p id="ad-subtitle" style="color: #f1c40f; font-family: 'Press Start 2P', monospace; font-size: 16px; text-align: center;" data-i18n="takeABreak">Take a break...</p>
     </div>
     <div id="wipe-confirm-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
         <div style="background: #5c3a21; border: 6px solid #2b170e; border-radius: 8px; padding: 20px; text-align: center; max-width: 400px; box-shadow: 0px 10px 20px rgba(0,0,0,0.5);">
-            <h2 style="color: #e74c3c; font-size: 16px; margin-bottom: 15px; text-shadow: 2px 2px 0 #000; border: none;">WARNING!</h2>
-            <p style="color: #f1c40f; font-size: 10px; line-height: 1.5; margin-bottom: 25px; text-shadow: 1px 1px 0 #000;">Are you sure you want to delete ALL progress?<br><br>This cannot be undone!</p>
+            <h2 style="color: #e74c3c; font-size: 16px; margin-bottom: 15px; text-shadow: 2px 2px 0 #000; border: none;" data-i18n="warning">WARNING!</h2>
+            <p style="color: #f1c40f; font-size: 10px; line-height: 1.5; margin-bottom: 25px; text-shadow: 1px 1px 0 #000;"><span data-i18n="warningDesc">Are you sure you want to delete ALL progress?<br><br>This cannot be undone!</span></p>
             <div style="display: flex; justify-content: center; gap: 20px;">
-                <button id="wipe-cancel" class="pixel-btn" style="background: #95a5a6; color: white;">CANCEL</button>
-                <button id="wipe-confirm" class="pixel-btn" style="background: #e74c3c; color: white;">WIPE IT</button>
+                <button id="wipe-cancel" class="pixel-btn" style="background: #95a5a6; color: white;" data-i18n="cancel">CANCEL</button>
+                <button id="wipe-confirm" class="pixel-btn" style="background: #e74c3c; color: white;" data-i18n="wipeIt">WIPE IT</button>
             </div>
         </div>
     </div>
-    <div id="pause-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
-        <h1 style="color: white; font-family: 'Press Start 2P', monospace; font-size: 32px; text-shadow: 2px 2px 0 #333; margin-bottom: 30px;">PAUSE</h1>
-        <button id="resume-btn" class="pixel-btn" style="font-size: 16px; padding: 15px 30px; background: #2ecc71; color: white; cursor: pointer; border: 4px solid #fff; box-shadow: 0 4px 0 #27ae60; font-family: 'Press Start 2P', monospace;">RESUME</button>
+    <div id="pause-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
+        <div style="background: #5c3a21; border: 6px solid #2b170e; border-radius: 8px; padding: 20px; text-align: center; width: 400px; height: 500px; box-sizing: border-box; box-shadow: 0px 10px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
+            <h1 style="color: white; font-family: 'Press Start 2P', monospace; font-size: 32px; text-shadow: 2px 2px 0 #333; margin: 0;" data-i18n="pause">PAUSE</h1>
+            
+            <div id="language-grid" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; width: 100%; max-width: 350px;">
+                <button id="lang-en" class="pixel-btn lang-btn" style="background: #2980b9; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('en', true)">EN</button>
+                <button id="lang-es" class="pixel-btn lang-btn" style="background: #c0392b; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('es', true)">ES</button>
+                <button id="lang-pt-br" class="pixel-btn lang-btn" style="background: #e67e22; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('pt-br', true)">PT</button>
+                <button id="lang-it" class="pixel-btn lang-btn" style="background: #27ae60; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('it', true)">IT</button>
+                <button id="lang-fr" class="pixel-btn lang-btn" style="background: #34495e; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('fr', true)">FR</button>
+                <button id="lang-de" class="pixel-btn lang-btn" style="background: #f1c40f; color: black; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('de', true)">DE</button>
+                <button id="lang-ru" class="pixel-btn lang-btn" style="background: #8e44ad; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('ru', true)">RU</button>
+                <button id="lang-tr" class="pixel-btn lang-btn" style="background: #d35400; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('tr', true)">TR</button>
+                <button id="lang-ja" class="pixel-btn lang-btn" style="background: #e056fd; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('ja', true)">JA</button>
+                <button id="lang-zh-cn" class="pixel-btn lang-btn" style="background: #e74c3c; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('zh-cn', true)">ZH</button>
+                <button id="lang-ko" class="pixel-btn lang-btn" style="background: #3498db; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('ko', true)">KO</button>
+                <button id="lang-pl" class="pixel-btn lang-btn" style="background: #e1b12c; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('pl', true)">PL</button>
+                <button id="lang-sv" class="pixel-btn lang-btn" style="background: #0097e6; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('sv', true)">SV</button>
+                <button id="lang-nl" class="pixel-btn lang-btn" style="background: #e84118; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('nl', true)">NL</button>
+                <button id="lang-vi" class="pixel-btn lang-btn" style="background: #4cd137; color: white; padding: 12px 0; font-size: 14px; flex: 0 0 calc(20% - 8px); display: flex; align-items: center; justify-content: center; transition: 0.2s;" onclick="window.changeLanguage('vi', true)">VI</button>
+            </div>
+            
+            <div id="translator-panel" style="background: rgba(0,0,0,0.5); border-radius: 4px; padding: 12px 10px; width: 100%; box-sizing: border-box; text-align: center; border: 2px dashed #95a5a6; margin-bottom: 4px;">
+                <span id="trans-author" style="color: #f1c40f; font-size: 10px; line-height: 1.4;" data-i18n="transByAI">Translation generated by AI</span>
+            </div>
+            <div style="text-align: center; margin-bottom: 12px;">
+                <a href="https://www.reddit.com/r/TheMachinEGG" target="_blank" style="color: #bdc3c7; font-size: 7px; text-decoration: underline; opacity: 0.8;" data-i18n="badTrans">Bad translation? Help us!</a>
+            </div>
+            
+            <button id="resume-btn" class="pixel-btn" style="font-size: 16px; padding: 15px 30px; background: #2ecc71; color: white; cursor: pointer; border: 4px solid #fff; box-shadow: 0 4px 0 #27ae60; font-family: 'Press Start 2P', monospace; width: 100%;"><span data-i18n="resume">RESUME</span></button>
+        </div>
     </div>
     
-    <!-- RANKING OVERLAY -->
-    <div id="ranking-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
-        <div style="background: #5c3a21; border: 6px solid #2b170e; border-radius: 8px; padding: 20px; max-width: 800px; width: 95%; box-shadow: 0px 10px 20px rgba(0,0,0,0.5); display: flex; flex-direction: row; gap: 20px; align-items: stretch;">
+    <!-- RANKING / CHALLENGES OVERLAY -->
+    <div id="ranking-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
+        <div style="background: #5c3a21; border: 6px solid #2b170e; border-radius: 8px; padding: 10px 15px; max-width: 900px; width: 95%; height: 90vh; box-sizing: border-box; box-shadow: 0px 10px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; position: relative;">
+            <h2 style="color: #f1c40f; font-size: clamp(18px, 2.5vh, 24px); margin-bottom: 10px; text-shadow: 2px 2px 0 #000; border: none; flex-shrink: 0;" data-i18n="challenges">CHALLENGES</h2>
             
-            <div style="flex: 2; text-align: center; display: flex; flex-direction: column;">
-                <h2 style="color: #f1c40f; font-size: 16px; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; border: none;">SPEEDRUN RANKING</h2>
-                <p id="ranking-status" style="color: #fff; font-size: 8px; margin-bottom: 15px;">Connecting to server...</p>
+            <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; width: 100%; flex-grow: 1; align-items: stretch; overflow-y: hidden; margin-bottom: 10px; align-content: stretch; min-height: 0;">
                 
-                <div id="ranking-list" style="background: #3e2723; border: 4px solid #2a1a10; flex: 1; max-height: 250px; overflow-y: auto; text-align: left; padding: 10px; font-size: 8px; color: #fff; line-height: 2.0; min-height: 220px;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
-                        <tbody id="ranking-tbody">
-                            <tr><td style="text-align:center; color:#f1c40f;">1</td><td style="text-align:center"><div style="background:#fda238; color:#fff; width:100px; padding:3px 0; text-align:center; font-size:6px; display:inline-block;">NEWGROUNDS</div></td><td>GOD</td><td style="text-align:right; color:#e67e22;">12:45</td></tr>
-                            <tr><td style="text-align:center; color:#bdc3c7;">2</td><td style="text-align:center"><div style="background:#fa5c5c; color:#fff; width:100px; padding:3px 0; text-align:center; font-size:6px; display:inline-block;">ITCH.IO</div></td><td>PRO</td><td style="text-align:right; color:#e67e22;">14:12</td></tr>
-                            <tr><td style="text-align:center; color:#cd7f32;">3</td><td style="text-align:center"><div style="background:#7c4dff; color:#fff; width:100px; padding:3px 0; text-align:center; font-size:6px; display:inline-block;">GALAXY</div></td><td>NUB</td><td style="text-align:right; color:#e67e22;">28:05</td></tr>
-                        </tbody>
-                    </table>
+                <!-- LEFT COLUMN: 3 OTHER MODES -->
+                <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 8px; min-height: 0;">
+                    
+                    <!-- CARD 1: RELAX -->
+                    <div class="challenge-card" style="background: #3e2723; border: 4px solid #2980b9; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; position: relative; flex: 1 1 0; min-height: 0;">
+                        <div id="check-chal-1" class="completed-seal" style="display: none;"></div>
+                        <h3 style="color: #3498db; font-size: clamp(12px, 1.8vh, 16px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000; flex-shrink: 0;" data-i18n="chal1Title">1. NORMAL (RELAX)</h3>
+                        <p style="color: #fff; font-size: clamp(8px, 1.2vh, 12px); line-height: 1.3; margin-bottom: 6px; flex-grow: 1; overflow: hidden;" data-i18n="chal1Desc">No ranking, no penalties. Grow at your own pace and reach the goal safely.</p>
+                        <div id="pb-vanilla" style="display: none; color: #f1c40f; font-size: clamp(8px, 1.2vh, 10px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000;"></div>
+                        <button id="normal-mode-btn" class="pixel-btn" style="background: #2980b9; color: white; padding: 8px; font-size: clamp(10px, 1.5vh, 14px); width: 100%; border: 4px solid #fff; box-shadow: 0 4px 0 #1c5980; flex-shrink: 0;" data-i18n="playMode">PLAY NORMAL</button>
+                    </div>
+
+                    <!-- CARD 3: ADAM & EVE -->
+                    <div class="challenge-card" style="background: #3e2723; border: 4px solid #2ecc71; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; position: relative; flex: 1 1 0; min-height: 0;">
+                        <div id="check-chal-3" class="completed-seal" style="display: none;"></div>
+                        <h3 style="color: #2ecc71; font-size: clamp(12px, 1.8vh, 16px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000; flex-shrink: 0;" data-i18n="chal3Title">2. ADAM & EVE</h3>
+                        <p style="color: #fff; font-size: clamp(8px, 1.2vh, 12px); line-height: 1.3; margin-bottom: 6px; flex-grow: 1; overflow: hidden;" data-i18n="chal3Desc">Start with strictly 1 Rooster and 1 Hen. Repopulate the farm with love, Max 5 roosters.</p>
+                        <div id="pb-adam" style="display: none; color: #f1c40f; font-size: clamp(8px, 1.2vh, 10px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000;"></div>
+                        <button id="adam-mode-btn" class="pixel-btn" style="background: #27ae60; color: white; padding: 8px; font-size: clamp(10px, 1.5vh, 14px); width: 100%; border: 4px solid #fff; box-shadow: 0 4px 0 #1e8449; flex-shrink: 0;" data-i18n="playAdam">PLAY CHALLENGE</button>
+                    </div>
+
+                    <!-- CARD 4: MANUAL LABOR -->
+                    <div class="challenge-card" style="background: #3e2723; border: 4px solid #9b59b6; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; position: relative; flex: 1 1 0; min-height: 0;">
+                        <div id="check-chal-4" class="completed-seal" style="display: none;"></div>
+                        <h3 style="color: #9b59b6; font-size: clamp(12px, 1.8vh, 16px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000; flex-shrink: 0;" data-i18n="chal4Title">3. EGG JAM</h3>
+                        <p style="color: #fff; font-size: clamp(8px, 1.2vh, 12px); line-height: 1.3; margin-bottom: 6px; flex-grow: 1; overflow: hidden;" data-i18n="chal4Desc">The Farm belt broke! But your magnet is much more powerful and can move up to 50 eggs at once!. Drag eggs manually to the basement.</p>
+                        <div id="pb-manual" style="display: none; color: #f1c40f; font-size: clamp(8px, 1.2vh, 10px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000;"></div>
+                        <button id="fourth-mode-btn" class="pixel-btn" style="background: #8e44ad; color: white; padding: 8px; font-size: clamp(10px, 1.5vh, 14px); width: 100%; border: 4px solid #fff; box-shadow: 0 4px 0 #732d91; flex-shrink: 0;" data-i18n="playManual">PLAY CHALLENGE</button>
+                    </div>
+
                 </div>
+
+                <!-- RIGHT COLUMN: SPEEDRUN + RANKING -->
+                <div style="flex: 1 1 350px; display: flex; flex-direction: column; min-height: 250px;">
+                    <div class="challenge-card" style="background: #3e2723; border: 4px solid #e67e22; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; height: 100%; box-sizing: border-box;">
+                        <div id="check-chal-2" class="completed-seal" style="display: none;"></div>
+                        <h3 style="color: #f39c12; font-size: clamp(12px, 1.8vh, 16px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000; flex-shrink: 0;" data-i18n="chal2Title">4. SPEEDRUN</h3>
+                        <p style="color: #fff; font-size: clamp(8px, 1.2vh, 12px); line-height: 1.3; margin-bottom: 6px; flex-shrink: 0;"><span data-i18n="chal2Desc">Egg values are doubled (x2). Your final time goes to the Global Ranking!</span></p>
+                        <div id="pb-speedrun" style="display: none; color: #f1c40f; font-size: clamp(8px, 1.2vh, 10px); margin-bottom: 4px; text-shadow: 1px 1px 0 #000;"></div>
+                        <button id="speedrun-start-btn" class="pixel-btn" style="background: #e67e22; color: white; padding: 8px; font-size: clamp(10px, 1.5vh, 14px); width: 100%; border: 4px solid #fff; box-shadow: 0 4px 0 #d35400; margin-bottom: 8px; flex-shrink: 0;" data-i18n="playSpeedrun">PLAY SPEEDRUN</button>
+                        
+                        <!-- EMBEDDED RANKING LIST -->
+                        <h4 style="color: #f1c40f; font-size: clamp(12px, 1.8vh, 16px); margin-bottom: 5px; text-shadow: 2px 2px 0 #000; border: none; flex-shrink: 0;" data-i18n="speedrunRanking" id="ranking-list-title">GLOBAL LEADERBOARD</h4>
+                        <p id="ranking-status" style="color: #fff; font-size: clamp(8px, 1.2vh, 12px); margin-bottom: 10px; flex-shrink: 0;" data-i18n="connecting">Connecting to server...</p>
+                        
+                        <div id="ranking-list" style="background: #1a0f0a; border: 4px solid #2a1a10; width: 100%; flex: 1 1 0; overflow-y: auto; text-align: left; padding: 10px; font-size: clamp(8px, 1.2vh, 12px); color: #fff; line-height: 2.0; box-sizing: border-box; min-height: 0;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: clamp(8px, 1.2vh, 12px);">
+                                <tbody id="ranking-tbody">
+                                    <tr><td colspan="4" style="text-align:center; padding: 20px;">Loading Ranking...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <div style="flex: 1; background: #4a2e1b; border: 4px solid #2b170e; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-                <p style="color: #e67e22; font-size: 9px; margin-bottom: 30px; text-shadow: 1px 1px 0 #000; line-height: 1.6;">Speedrun Mode doubles (x2) all egg values.<br><br>Only Speedrun runs are uploaded to the Ranking!</p>
-                
-                <div style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
-                    <button id="speedrun-start-btn" class="pixel-btn" style="background: #e74c3c; color: white; padding: 15px 10px; font-size: 8px; width: 100%; animation: retire-pulse 2s infinite;">START SPEEDRUN</button>
-                    <button id="normal-mode-btn" class="pixel-btn" style="background: #3498db; color: white; padding: 15px 10px; font-size: 8px; width: 100%;">NORMAL MODE</button>
-                    <button id="ranking-close" class="pixel-btn" style="background: #95a5a6; color: white; padding: 15px 10px; font-size: 8px; width: 100%;">CLOSE</button>
-                </div>
-            </div>
-
+            <button id="ranking-close" class="pixel-btn" style="position: absolute; top: 10px; right: 10px; background: #e74c3c; color: white; padding: 6px 10px; font-size: 8px; width: auto; border: 4px solid #fff; box-shadow: 0 4px 0 #c0392b; flex-shrink: 0; z-index: 10;" data-i18n="close">X</button>
         </div>
     </div>
 
     <!-- SPEEDRUN NAME INPUT OVERLAY -->
     <div id="name-input-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 100000; justify-content: center; align-items: center; flex-direction: column;">
-        <h1 style="color: #f1c40f; font-family: 'Press Start 2P', monospace; font-size: 24px; text-shadow: 2px 2px 0 #333; margin-bottom: 20px; text-align: center;">NEW RECORD!</h1>
-        <p id="final-speedrun-time" style="color: white; font-family: 'Press Start 2P', monospace; font-size: 14px; margin-bottom: 10px;">TIME: 00:00</p>
-        <p id="final-speedrun-chickens" style="color: #2ecc71; font-family: 'Press Start 2P', monospace; font-size: 10px; margin-bottom: 10px;">🐔 Chickens Freed: 0</p>
+        <h1 style="color: #f1c40f; font-family: 'Press Start 2P', monospace; font-size: 24px; text-shadow: 2px 2px 0 #333; margin-bottom: 20px; text-align: center;" data-i18n="newRecord">NEW RECORD!</h1>
+        <p id="final-speedrun-time" style="color: white; font-family: 'Press Start 2P', monospace; font-size: 14px; margin-bottom: 10px;" data-i18n="time">TIME: 00:00</p>
+        <p id="final-speedrun-chickens" style="color: #2ecc71; font-family: 'Press Start 2P', monospace; font-size: 10px; margin-bottom: 10px;" data-i18n="chickensFreed">Chickens Freed: 0</p>
 
-        <p style="color: #aaa; font-size: 8px; margin-bottom: 15px;">Enter your name for the global ranking:</p>
-        <input type="text" id="speedrun-name-input" maxlength="15" style="background: #222; color: #f1c40f; border: 4px solid #f1c40f; padding: 10px; font-size: 14px; font-family: 'Press Start 2P', monospace; width: 280px; text-align: center; text-transform: uppercase; margin-bottom: 15px;" placeholder="YOUR NAME">
-        <p style="color: #aaa; font-size: 8px; margin-bottom: 8px;">Community:</p>
+        <p style="color: #aaa; font-size: 8px; margin-bottom: 15px;" data-i18n="enterName">Enter your name for the global ranking:</p>
+        <input type="text" id="speedrun-name-input" maxlength="15" style="background: #222; color: #f1c40f; border: 4px solid #f1c40f; padding: 10px; font-size: 14px; font-family: 'Press Start 2P', monospace; width: 280px; text-align: center; text-transform: uppercase; margin-bottom: 15px;" data-i18n-placeholder="yourNamePlaceholder" placeholder="YOUR NAME">
+        <p style="color: #aaa; font-size: 8px; margin-bottom: 8px;" data-i18n="community">Community:</p>
         <select id="speedrun-market-select" style="background: #222; color: #3498db; border: 4px solid #3498db; padding: 8px; font-size: 10px; font-family: 'Press Start 2P', monospace; width: 280px; text-align: center; margin-bottom: 20px; cursor: pointer;">
-            <option value="" disabled selected>-- SELECT COMMUNITY --</option>
+            <option value="" disabled selected><span data-i18n="selectCommunity">-- SELECT COMMUNITY --</span></option>
             <option value="itchio">🎮 itch.io</option>
             <option value="incrementaldb">📊 IncrementalDB</option>
         </select>
-        <button id="speedrun-submit-btn" class="pixel-btn" style="font-size: 12px; padding: 15px 30px; background: #2ecc71; color: white;">SUBMIT SCORE</button>
+        <button id="speedrun-submit-btn" class="pixel-btn" style="font-size: 12px; padding: 15px 30px; background: #2ecc71; color: white;" data-i18n="submitScore">SUBMIT SCORE</button>
     </div>
 
+    <script src="lang.js"></script>
     <script src="script.js"></script>
 
     <!-- SCROLL Y AUTOESCALADO -->
